@@ -1,0 +1,128 @@
+scan_data[0],1,//data_delay_L<0> for the master clock's global delay on I side
+scan_data[1],0,
+scan_data[2],1,
+scan_data[3],0,
+scan_data[4],1,
+scan_data[5],1,
+scan_data[6],0,
+scan_data[7],0,
+scan_data[8],1,
+scan_data[9],1,
+scan_data[10],1, //data_delay_L<10>
+scan_data[11],1, //data_delay_L<11>
+scan_data[12],0, //data_delay_R<0>
+scan_data[13],0,
+scan_data[14],0,
+scan_data[15],0,
+scan_data[16],1,
+scan_data[17],1,
+scan_data[18],1,
+scan_data[19],1,
+scan_data[20],1,
+scan_data[21],1,
+scan_data[22],1, //data_delay_R<10>
+scan_data[23],1, //data_delay_R<11>
+scan_data[24],0, //dac_delay_L<0> for the clock that drives the DAC
+scan_data[25],0,
+scan_data[26],0,
+scan_data[27],0, //dac_delay_L<3>
+scan_data[28],0, //dac_delay_L<4>
+scan_data[29],0,
+scan_data[30],0,
+scan_data[31],0,
+scan_data[32],0,
+scan_data[33],0,
+scan_data[34],0,
+scan_data[35],0,
+scan_data[36],0,
+scan_data[37],0,
+scan_data[38],0,
+scan_data[39],0, //dac_delay_L<15>
+scan_data[40],0, //dac_delay_L<16>
+scan_data[41],0, //dac_delay_R<0>
+scan_data[42],0,
+scan_data[43],0,
+scan_data[44],0, //dac_delay_R<3>
+scan_data[45],0,
+scan_data[46],0,
+scan_data[47],0,
+scan_data[48],0,
+scan_data[49],0,
+scan_data[50],0,
+scan_data[51],0,
+scan_data[52],0,
+scan_data[53],0,
+scan_data[54],0,
+scan_data[55],0,
+scan_data[56],0, //dac_delay_R<15>
+scan_data[57],0, //dac_delay_R<16>
+scan_data[58],0, //readout<0>
+scan_data[59],0, //readout<1>
+scan_data[60],0,
+scan_data[61],0,
+scan_data[62],0,
+scan_data[63],0,
+scan_data[64],0,
+scan_data[65],0,
+scan_data[66],0,
+scan_data[67],0,
+scan_data[68],0, //readout<10> chooses the ground
+scan_data[69],0, //reset_decoder - constant reset for now to inhibit delay - i.e. default max delay for all;
+scan_data[70],0, //Cfilt<0>
+scan_data[71],0,
+scan_data[72],0, //Cfilt<2> - 100 is middle code
+scan_data[73],0, //Swing<0>
+scan_data[74],0,
+scan_data[75],0,
+scan_data[76],0,
+scan_data[77],0,
+scan_data[78],0, //Swing<5> - 100000 middle code
+scan_data[79],0, //CMFB_en low
+scan_data[80],0, //UpperBandBool - 0 for lowerband
+scan_data[81],0, //BypassEN for the baseband signal
+scan_data[82],0, //QHB<0>
+scan_data[83],0,
+scan_data[84],0,
+scan_data[85],0,
+scan_data[86],0,
+scan_data[87],0, //QHB<5> - end of scan bits
+scan_data[88],0,
+scan_data[89],0,
+scan_data[90],0,
+scan_data[91],0,
+scan_data[92],0,
+scan_data[93],0,
+scan_data[94],0,
+scan_data[95],0,
+scan_data[96],0,
+scan_data[97],0,
+scan_data[98],0,
+scan_data[99],0,
+scan_data[100],0,
+scan_data[101],0,
+scan_data[102],0,
+scan_data[103],0,
+scan_data[104],0,
+scan_data[105],0,
+scan_data[106],0,
+scan_data[107],0, // end of scan chain
+scan_data[108],0,
+scan_data[109],0,
+scan_data[110],0,
+scan_data[111],0,
+scan_data[112],0,
+scan_data[113],0,
+scan_data[114],0,
+scan_data[115],0,
+scan_data[116],0,
+scan_data[117],0,
+scan_data[118],0,
+scan_data[119],0,
+scan_data[120],0,
+scan_data[121],0,
+scan_data[122],0,
+scan_data[123],0,
+scan_data[124],0,
+scan_data[125],0,
+scan_data[126],0,
+scan_data[127],0,

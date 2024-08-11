@@ -1,0 +1,44 @@
+﻿num_of_bits,start_bit_index_LSB,end_bit_index_MSB,name,description,value_decimal,value_binary (MSB to LSB)
+3,0,2,cntr_rx_ch1_ps_q_p,"RX CH1 PS control ""q_p""",0,000
+3,3,5,cntr_rx_ch1_ps_q_n,"RX CH1 PS control ""q_n""",0,000
+3,6,8,cntr_rx_ch1_ps_i_p,"RX CH1 PS control ""i_p""",7,111
+3,9,11,cntr_rx_ch1_ps_i_n,"RX CH1 PS control ""i_n""",0,000
+6,12,17,i_bias_rx_ch1_amp_s1_cg,"Bias current of ""rx_ch1_amp_s1_cg""",8,001000
+6,18,23,i_bias_rx_ch1_amp_s1_cs,"Bias current of ""rx_ch1_amp_s1_cs""",8,001000
+6,24,29,i_bias_rx_ch1_amp_s2,"Bias current of ""rx_ch1_amp_s2""",12,001100
+6,30,35,i_bias_rx_ch1_amp_s3,"Bias current of ""rx_ch1_amp_s3""",12,001100
+6,36,41,i_bias_rx_ch1_amp_s4,"Bias current of ""rx_ch1_amp_s4""",12,001100
+6,42,47,i_bias_rx_ch1_ps,"Bias current of ""rx_ch1_ps""",12,001100
+3,48,50,cntr_rx_ch2_ps_q_p,"RX CH2 PS control ""q_p""",0,000
+3,51,53,cntr_rx_ch2_ps_q_n,"RX CH2 PS control ""q_n""",0,000
+3,54,56,cntr_rx_ch2_ps_i_p,"RX CH2 PS control ""i_p""",7,111
+3,57,59,cntr_rx_ch2_ps_i_n,"RX CH2 PS control ""i_n""",0,000
+6,60,65,i_bias_rx_ch2_amp_s1_cg,"Bias current of ""rx_ch2_amp_s1_cg""",8,001000
+6,66,71,i_bias_rx_ch2_amp_s1_cs,"Bias current of ""rx_ch2_amp_s1_cs""",8,001000
+6,72,77,i_bias_rx_ch2_amp_s2,"Bias current of ""rx_ch2_amp_s2""",12,001100
+6,78,83,i_bias_rx_ch2_amp_s3,"Bias current of ""rx_ch2_amp_s3""",12,001100
+6,84,89,i_bias_rx_ch2_amp_s4,"Bias current of ""rx_ch2_amp_s4""",12,001100
+6,90,95,i_bias_rx_ch2_ps,"Bias current of ""rx_ch2_ps""",12,001100
+3,96,98,cntr_rx_ch3_ps_q_p,"RX CH3 PS control ""q_p""",0,000
+3,99,101,cntr_rx_ch3_ps_q_n,"RX CH3 PS control ""q_n""",0,000
+3,102,104,cntr_rx_ch3_ps_i_p,"RX CH3 PS control ""i_p""",7,111
+3,105,107,cntr_rx_ch3_ps_i_n,"RX CH3 PS control ""i_n""",0,000
+6,108,113,i_bias_rx_ch3_amp_s1_cg,"Bias current of ""rx_ch3_amp_s1_cg""",8,001000
+6,114,119,i_bias_rx_ch3_amp_s1_cs,"Bias current of ""rx_ch3_amp_s1_cs""",8,001000
+6,120,125,i_bias_rx_ch3_amp_s2,"Bias current of ""rx_ch3_amp_s2""",12,001100
+6,126,131,i_bias_rx_ch3_amp_s3,"Bias current of ""rx_ch3_amp_s3""",12,001100
+6,132,137,i_bias_rx_ch3_amp_s4,"Bias current of ""rx_ch3_amp_s4""",12,001100
+6,138,143,i_bias_rx_ch3_ps,"Bias current of ""rx_ch3_ps""",12,001100
+3,144,146,cntr_rx_ch4_ps_q_p,"RX CH4 PS control ""q_p""",0,000
+3,147,149,cntr_rx_ch4_ps_q_n,"RX CH4 PS control ""q_n""",0,000
+3,150,152,cntr_rx_ch4_ps_i_p,"RX CH4 PS control ""i_p""",7,111
+3,153,155,cntr_rx_ch4_ps_i_n,"RX CH4 PS control ""i_n""",0,000
+6,156,161,i_bias_rx_ch4_amp_s1_cg,"Bias current of ""rx_ch4_amp_s1_cg""",8,001000
+6,162,167,i_bias_rx_ch4_amp_s1_cs,"Bias current of ""rx_ch4_amp_s1_cs""",8,001000
+6,168,173,i_bias_rx_ch4_amp_s2,"Bias current of ""rx_ch4_amp_s2""",12,001100
+6,174,179,i_bias_rx_ch4_amp_s3,"Bias current of ""rx_ch4_amp_s3""",12,001100
+6,180,185,i_bias_rx_ch4_amp_s4,"Bias current of ""rx_ch4_amp_s4""",12,001100
+6,186,191,i_bias_rx_ch4_ps,"Bias current of ""rx_ch4_ps""",12,001100
+6,192,197,i_bias_rx_comm_amp_s1,"Bias current of ""rx_comm_amp_s1""",12,001100
+6,198,203,i_bias_rx_comm_amp_s2,"Bias current of ""rx_comm_amp_s2""",12,001100
+6,204,209,i_bias_rx_comm_amp_s3,"Bias current of ""rx_comm_amp_s3""",12,001100

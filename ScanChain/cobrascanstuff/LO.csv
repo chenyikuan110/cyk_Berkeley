@@ -1,0 +1,10 @@
+﻿num_of_bits,start_bit_index_LSB,end_bit_index_MSB,name,description,value_decimal,value_binary (MSB to LSB)
+6,0,5,v_dac_mixer,Mixer gate voltage bias,12,001100
+1,6,6,v_dac_mixer_amp_en,Mixer gate voltage bias amper enable,1,1
+6,7,12,i_bias_lo_amp_115g_s3,"Bias current of ""lo_amp_115g_s3""",12,001100
+6,13,18,i_bias_lo_amp_115g_s2,"Bias current of ""lo_amp_115g_s2""",12,001100
+6,19,24,i_bias_lo_amp_115g_s1,"Bias current of ""lo_amp_115g_s1""",12,001100
+6,25,30,i_bias_lo_quad_115g,"Bias current of ""lo_quad_115g""",17,010001
+6,31,36,i_bias_lo_amp_28g,"Bias current of ""lo_amp_28g""",12,001100
+6,37,42,i_bias_lo_quad_28g,"Bias current of ""lo_quad_28g""",17,010001
+6,43,48,i_bias_dac_mixer_amp,"Bias current of ""dac_mixer_amp""",2,000010

@@ -1,0 +1,213 @@
+# RIS scanchain controller library built for Raspberry PI
+# V1.0 by Yikuan Chen - May 30, 2023
+# In case of any questions, reach out via yikuan_chen@apple.com
+
+import importlib.util
+import csv
+
+# When dev in other environment than Rasp PI, use a placeholder lib to avoid compile error
+try:
+    importlib.util.find_spec('RPi.GPIO')
+    import RPi.GPIO as GPIO
+except ImportError:
+    """
+    import FakeRPi.GPIO as GPIO
+    OR
+    import FakeRPi.RPiO as RPiO
+    """
+    print("Not in Rasp PI env, using fake Rpi...")
+    """
+    uncomment the following line if installed FakeRPi 
+    """
+
+
+#     import FakeRPi.GPIO as GPIO
+
+
+class ScanChain:
+    sin = 29
+    clock = 26
+    latch = 22
+    sout = 18
+    n_row = 16
+    n_col = 8
+    bool_rgb = True
+    n_channel_per_pixel = 3
+    n_bit_per_channel = 8
+    csv_path = ""
+    pixels = []
+
+    # initialize the scan chain object
+    def __init__(self, PIN_SIN, PIN_LAT, PIN_CLK, PIN_SOUT):
+        self.sin = PIN_SIN
+        self.latch = PIN_LAT
+        self.clock = PIN_CLK
+        self.sout = PIN_SOUT
+
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup((self.sin, self.latch, self.clock), GPIO.OUT)
+
+    # set "color" csv
+    def set_csv_path(self, path):
+        self.csv_path = path
+        print("RGB map CSV path set to ", self.csv_path)
+
+    def set_nrow(self, nrow):
+        self.n_row = nrow
+        print("Number of pixel rows set to ", self.n_row)
+
+    def set_ncol(self, ncol):
+        self.n_col = ncol
+        print("Number of LED drivers set to ", self.n_col)
+
+    def set_bool_rgb(self, bool_rgb):
+        self.bool_rgb = bool_rgb
+        self.n_channel_per_pixel = 3 if self.bool_rgb else 1
+
+    # change one dec value into fixed width binary in MSB>--->LSB order
+    def dec_to_bin(self, val):
+        b = [0 for i in range(self.n_bit_per_channel)]
+        if val > 2 ** self.n_bit_per_channel - 1 or val < 0:
+            print(str(val) + " cannot be represented by " + str(self.n_bit_per_channel) + " binary!")
+        else:
+            # print(str(num) + ":")
+            for i in range(self.n_bit_per_channel):
+                b[
+                    self.n_bit_per_channel - i - 1] = val % 2  # TODO:LSB on the leftmost side!!! No need to fix, just a highlight
+                val = val // 2  # this is an implementation without numpy lib
+        return b
+
+    # change a decimal array into LSB-first binary
+    def dec_array_to_bin_array(self, array):
+        length = len(array)
+        b = [0 for i in range(length * self.n_bit_per_channel)]
+        for i in range(length):
+            b[i * self.n_bit_per_channel:(i + 1) * self.n_bit_per_channel] = self.dec_to_bin(array[i])
+        return b
+
+    # export the entire matrix into 1D binary array
+    def to_binary(self):
+        return self.dec_array_to_bin_array(self.pixels)
+
+    # translate bits array into pixel (1D) array
+    def bits_to_pixels(self, bits):
+        if len(bits) != self.n_bit_per_channel*self.n_channel_per_pixel*self.n_col*self.n_row:
+            print("wrong input array length! translation abolished.")
+        else:
+            self.pixels = []
+            for i in range(self.n_channel_per_pixel*self.n_col*self.n_row):
+                self.pixels.append(self.bin_to_dec(bits[i * self.n_bit_per_channel:(i + 1) * self.n_bit_per_channel]))
+        return
+
+    def bin_to_dec(self, bits):
+        if len(bits) != self.n_bit_per_channel:
+            print("wrong bit width for back translation!")
+            return -1
+        else:
+            val = 0
+            for i in range(self.n_bit_per_channel):
+                val += bits[self.n_bit_per_channel-i-1] << i
+            return val
+
+    # use csv as scan bit profile input
+    def load_pixels_from_csv(self):
+        file = open(self.csv_path, 'r', encoding='utf-8-sig')
+        csv_reader = csv.reader(file)
+        self.pixels = []
+        count = 0
+
+        for row in csv_reader:
+            for i in range(self.n_col):
+                for j in range(self.n_channel_per_pixel):
+                    # print(row[i * 3 + j])
+                    self.pixels.append(int(row[i * 3 + j]))
+                    count += 1
+        print(count, "values loaded from csv.")
+
+    # directly load pre-generated bits from csv
+    def load_bits_from_csv(self, path, bool_translate_to_pixel=False):
+        file = open(path, 'r', encoding='utf-8-sig')
+        csv_reader = csv.reader(file)
+        bits = []
+        count = 0
+
+        for row in csv_reader:
+            bits.append(int(row[0]))
+            count += 1
+        print(count, "bits loaded from csv.")
+        if bool_translate_to_pixel:
+            self.bits_to_pixels(bits)
+        return bits
+
+    # print the pixel matrix row by row
+    def print_matrix(self, bool_indexing=True):
+        print("")
+        if bool_indexing:
+            print('          ', end=" ")
+            for j in range(self.n_col):
+                print('    ', str(j).zfill(3), '   ', end=" ")
+            print("")
+        for i in reversed(range(self.n_row)):
+            if bool_indexing:
+                print('    ', str(i).zfill(3), ' ', end=" ")
+            for j in range(self.n_col):
+                print(" ", end="")
+                for k in range(self.n_channel_per_pixel):
+                    index = i * self.n_col * self.n_channel_per_pixel + j * self.n_channel_per_pixel + k
+                    print(str(self.pixels[index]).zfill(3), end=" ")
+            print("")
+        print("")
+
+    # write the whole scan chain to the PIN
+    def write_scan(self):
+
+        bits = self.to_binary()
+        # set latch pin to low
+        GPIO.output(self.clock, 0)
+        GPIO.output(self.latch, 0)
+        GPIO.output(self.clock, 1)
+
+        counter = 0
+        for i in reversed(range(len(bits))):
+            GPIO.output(self.clock, 0)
+            GPIO.output(self.sin, bits[i])
+            GPIO.output(self.clock, 1)
+            counter += 1
+
+        # set latch pin to high to finish writing
+        GPIO.output(self.clock, 0)
+        GPIO.output(self.latch, 1)
+        GPIO.output(self.clock, 1)
+
+        print(counter, ' bits have been written.')
+
+    # change a pixel
+    # x is LED driver index, ranges from 0 to 7
+    # y is the row index, ranges from 0 to 15
+    def change_pixel(self, x, y, val):
+        index = y * self.n_col * self.n_channel_per_pixel + x * self.n_channel_per_pixel
+        for i in range(self.n_channel_per_pixel):
+            self.pixels[index + i] = val if isinstance(val, int) else val[i]
+
+    # change a pixel
+    # x is LED driver index, ranges from 0 to 7
+    # y is the row index, ranges from 0 to 15
+    # i is the channel, ranges from 0 to 2 if it's RGB
+    def change_channel(self, x, y, i=0, val=0):
+        index = y * self.n_col * self.n_channel_per_pixel + x * self.n_channel_per_pixel + i
+        self.pixels[index] = val
+
+
+    # write the binary array to a .csv file
+    def write_binary_to_file(self, bits, time_tag):
+        full_file_path = 'export_bits' + time_tag + '.csv'
+        fp = open(full_file_path, 'w')
+        for line in bits[:-1]:
+            fp.write("{},\n".format(line))
+        fp.write("{}".format(bits[-1]))
+        fp.close()
+
+
+    # sanity purpose
+    def cleanup_scan(self):
+        GPIO.cleanup()
