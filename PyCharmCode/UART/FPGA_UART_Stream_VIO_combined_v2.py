@@ -61,7 +61,7 @@ start_up_params = []
 start_up_params.append(vio_param('TX_DAC_frequency_word', 4096, 0, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('TX_DAC_initial_phase', 0, 3, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_IQ_phase_diff', 32767, 6, 3, 1 / (LUT_size / 90), 'deg'))
-start_up_params.append(vio_param('TX_Mult_enable', 9, 6, 1))
+start_up_params.append(vio_param('TX_Mult_enable', 1, 9, 1))
 start_up_params.append(vio_param('TX_Mult_gain', 32767, 10, 3))
 start_up_params.append(vio_param('VM_DAC_frequency_word', 4096, 13, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('VM_DAC_initial_phase', 0, 16, 3, 1 / (LUT_size / 90), 'deg'))
@@ -176,23 +176,20 @@ def run_vio():
                         curr_val = np.array([params.default_val for params in start_up_params])
                         conv_factor = np.array([params.conv_factor for params in start_up_params])
                         unit = np.array([params.unit for params in start_up_params])
+                        time.sleep(0.1)
             else:
                 if task[0] == 'tx_freq' or task[0] == 'TX_DAC_frequency_word':
                     cmd = 'TX_DAC_frequency_word'
-                    # conv_factor = fund_tone
-                    # unit = 'Hz'
                 elif task[0] == 'vm_freq' or task[0] == 'VM_DAC_frequency_word':
                     cmd = 'VM_DAC_frequency_word'
-                    # conv_factor = fund_tone
-                    # unit = 'Hz'
                 elif task[0] == 'tx_phase' or task[0] == 'TX_DAC_initial_phase':
                     cmd = 'TX_DAC_initial_phase'
-                    # conv_factor = 1 / (LUT_size / 90)
-                    # unit = 'deg'
                 elif task[0] == 'vm_phase' or task[0] == 'VM_DAC_initial_phase':
                     cmd = 'VM_DAC_initial_phase'
-                    # conv_factor = 1 / (LUT_size / 90)
-                    # unit = 'deg'
+                elif task[0] == 'tx_phase_diff' or task[0] == 'TX_IQ_phase_diff':
+                    cmd = 'TX_IQ_phase_diff'
+                elif task[0] == 'vm_phase_diff' or task[0] == 'VM_IQ_phase_diff':
+                    cmd = 'VM_IQ_phase_diff'
                 elif task[0] == 'tx_mag' or task[0] == 'TX_Mult_gain':
                     cmd = 'TX_Mult_gain'
                 elif task[0] == 'vm_mag' or task[0] == 'VM_Mult_gain':
@@ -242,20 +239,16 @@ def run_vio():
                 if len(params) == 4:
                     if params[0] == 'tx_freq':
                         cmd = 'TX_DAC_frequency_word'
-                        # conv_factor = fund_tone
-                        # unit = 'Hz'
                     elif params[0] == 'vm_freq':
                         cmd = 'VM_DAC_frequency_word'
-                        # conv_factor = fund_tone
-                        # unit = 'Hz'
                     elif params[0] == 'tx_phase':
                         cmd = 'TX_DAC_initial_phase'
-                        # conv_factor = 1 / (LUT_size / 90)
-                        # unit = 'deg'
                     elif params[0] == 'vm_phase':
                         cmd = 'VM_DAC_initial_phase'
-                        # conv_factor = 1 / (LUT_size / 90)
-                        # unit = 'deg'
+                    elif params[0] == 'tx_phase_diff':
+                        cmd = 'TX_IQ_phase_diff'
+                    elif params[0] == 'vm_phase_diff':
+                        cmd = 'VM_IQ_phase_diff'
                     elif params[0] == 'tx_mag':
                         cmd = 'TX_Mult_gain'
                     elif params[0] == 'vm_mag':
