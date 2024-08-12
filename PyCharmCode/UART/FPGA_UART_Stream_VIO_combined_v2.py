@@ -26,18 +26,18 @@ class vio_param:
 
 
 # Windows
-# if os.name == 'nt':
-#     ser = serial.Serial()
-#     ser.baudrate = 115200
-#     ser.port = 'COM9'  # CHANGE THIS COM PORT
-#     ser.timeout = 2
-#     ser.open()
-# else:
-#     ser = serial.Serial('/dev/ttyUSB0')
-#     ser.baudrate = 115200  # 921600
+if os.name == 'nt':
+    ser = serial.Serial()
+    ser.baudrate = 115200
+    ser.port = 'COM9'  # CHANGE THIS COM PORT
+    ser.timeout = 2
+    ser.open()
+else:
+    ser = serial.Serial('/dev/ttys002')
+    ser.baudrate = 115200  # 921600
 
 # emulation enable
-emulation_on = True
+emulation_on = False
 emulation_fft = False
 plot_on = True
 scale_FS = True
@@ -454,11 +454,11 @@ def fpga_stream():
 # Main thread
 if __name__ == "__main__":
     # Create threads
-    # vio_thread = threading.Thread(target=run_vio)
+    vio_thread = threading.Thread(target=run_vio)
     # Start sub thread
-    # vio_thread.start()
+    vio_thread.start()
     fpga_stream()
 
     # Wait for thread to finish
-    # vio_thread.join()
+    vio_thread.join()
     exit()
