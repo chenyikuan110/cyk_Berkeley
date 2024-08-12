@@ -23,7 +23,7 @@ w_size = 1500
 # Environment var
 # VM_freq 16368 good
 print_info = True
-Emulating = True
+Emulating = False
 port = 'COM5' if os.name == 'nt' else '/dev/ttys002' # COM9 for arduino uno, COM5 for arduino due, COM2<->4 are virtual
 baudrate = 9600
 scanchain_size = 648
@@ -122,7 +122,7 @@ class ScanBit:
 
 # GUI tool
 class DataGUI:
-    def __init__(self, root, csv_path_name, my_ser, scan_count, my_SCAN_LIST):
+    def __init__(self, root, csv_path_name, my_ser, my_scan_count, my_SCAN_LIST):
         self.root = root
 
         self.csv_path = csv_path_name
@@ -877,6 +877,7 @@ def run_socat():
 # Main
 def main():
     stop_flag = False
+    socat_process = None
     if Emulating and os.name != 'nt':
         socat_process = run_socat()
 
@@ -1006,14 +1007,16 @@ def main():
 
 
         except KeyboardInterrupt:
-            print("Interrupt received, terminating socat process.")
-            socat_process.terminate()
-            socat_process.wait()  # Ensure process is cleaned up
-        finally:
-            if socat_process.poll() is None:
-                print("Terminating socat process.")
+            if socat_process:
+                print("Interrupt received, terminating socat process.")
                 socat_process.terminate()
-                socat_process.wait()
+                socat_process.wait()  # Ensure process is cleaned up
+        finally:
+            if socat_process:
+                if socat_process.poll() is None:
+                    print("Terminating socat process.")
+                    socat_process.terminate()
+                    socat_process.wait()
 
 
 if __name__ == "__main__":
