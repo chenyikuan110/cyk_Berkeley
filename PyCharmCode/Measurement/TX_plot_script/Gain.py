@@ -102,7 +102,7 @@ csv_files = glob.glob(os.path.join(my_dir, my_subdir, 'TX_RF_2024*.csv'))
 
 # Plotting
 # plt.figure()
-plt.style.use(['science','ieee','no-latex'])
+plt.style.use(['science','no-latex'])
 fig_eirp, ax1 = plt.subplots()
 fig_imrr, ax2 = plt.subplots()
 # Print the file names

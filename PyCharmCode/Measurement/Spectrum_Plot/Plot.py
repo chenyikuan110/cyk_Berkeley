@@ -14,7 +14,14 @@ import itertools
 my_dir = ""
 
 # Load DUT data
-my_subdir = "20240807_SENDAR/30cm_and_290cm_idcoc_scan"
+my_subdir = "20240809_DAC/Sweep1ms"
+# csv_format = 'FMCW*.csv'
+csv_format = 'Trace*'
+normalize = False
+# plot_name = 'Received Power\n Normalized to Leakage [dB]'
+plot_name = 'Measured Power [dBm]'
+font_downscale = 1
+legend_loc = 'upper center'
 
 plt.rcParams['axes.unicode_minus'] = False
 # Initialization
@@ -52,7 +59,7 @@ def split_string(s, delimiters):
 
 
 
-csv_files = glob.glob(os.path.join(my_dir, my_subdir, 'Trace_*.csv'))
+csv_files = glob.glob(os.path.join(my_dir, my_subdir, csv_format))
 
 # Plotting
 # plt.figure()
@@ -63,6 +70,7 @@ curr_max = -100
 curr_max_imrr = -100
 curr_argmax = 0
 curr_argmax_imrr = 0
+i = 0
 for i,file in enumerate(list(csv_files)):
 
     print(os.path.basename(file))
@@ -95,8 +103,8 @@ for i,file in enumerate(list(csv_files)):
         curr_max = line_max
         curr_argmax = np.argmax(smoothed_gain[window_size:len(freq_rec_pw)-window_size])+window_size
 
-    label_name = ' '.join(file_name_parse[2:-1])
-    offset = -line_max # 0 if label_name == 'IQ' else 10
+    label_name = ' '.join(file_name_parse[1:-1])
+    offset = -line_max if normalize else 0 # 0 if label_name == 'IQ' else 10
 
 
 
@@ -115,9 +123,9 @@ print(curr_argmax, curr_max)
 # ax1.axhline(y=curr_max, color='r', linestyle='--')
 ax1.tick_params(labelsize = 28*2)
 ax1.set_xlabel('Freq [Hz]',fontsize=20*2)
-ax1.set_ylabel('Received Power\n Normalized to Leakage [dB]',fontsize=20*2)
+ax1.set_ylabel(plot_name,fontsize=20*2)
 ax1.grid(True,linestyle='--', dashes=(5, 10))
-ax1.legend(loc='lower center', fontsize=14*2*4/i)
+ax1.legend(loc=legend_loc, fontsize=14*2*4/(i+1)/font_downscale)
 
 print("curr max is ",curr_max)
 xaxis_range = [int(freq_rec_pw[0]), int(freq_rec_pw[-1])]
