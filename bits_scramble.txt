@@ -1,0 +1,53 @@
+// bank 121
+DP0_M2C_N = C7   = I8  = I[3]_P
+DP0_M2C_P = C6   = I7  = I[3]_N
+DP1_M2C_N = A3   = Q5  = Q[2]_N
+DP1_M2C_P = A2   = Q6  = Q[2]_P
+DP2_M2C_N = A7   = I1  = I[0]_N
+DP2_M2C_P = A6   = I2  = I[0]_P
+DP3_M2C_N = A11  = Q19 = Q[9]_N
+DP3_M2C_P = A10  = Q20 = Q[9]_P
+
+// bank 126
+DP4_M2C_N = A15  = Q17 = Q[8]_N
+DP4_M2C_P = A14  = Q18 = Q[8]_P
+DP5_M2C_N = A19  = Q14 = Q[6]_P
+DP5_M2C_P = A18  = Q13 = Q[6]_N
+DP6_M2C_N = B17  = I9  = I[4]_N
+DP6_M2C_P = B16  = I10 = I[4]_P
+DP7_M2C_N = B13  = I6  = I[2]_P
+DP7_M2C_P = B12  = I5  = I[2]_N
+
+// bank 122
+DP8_M2C_N = B9   = I14 = I[6]_P
+DP8_M2C_P = B8   = I13 = I[6]_N
+DP9_M2C_N = B5   = Q1  = Q[0]_N
+DP9_M2C_P = B4   = Q2  = Q[0]_P
+DP10_M2C_N = Y11 = I3  = I[1]_N
+DP10_M2C_P = Y10 = I4  = I[1]_P
+DP11_M2C_N = Z13 = I11 = I[5]_N
+DP11_M2C_P = Z12 = I12 = I[5]_P
+
+// bank 127
+DP16_M2C_N = Z33 = Q11 = Q[5]_N
+DP16_M2C_P = Z32 = Q12 = Q[5]_P
+DP17_M2C_N = Y35 = I19 = I[9]_N
+DP17_M2C_P = Y34 = I20 = I[9]_P
+DP18_M2C_N = Z37 = I16 = I[7]_P
+DP18_M2C_P = Z36 = I15 = I[7]_N
+DP19_M2C_N = Y39 = I17 = I[8]_N
+DP19_M2C_P = Y38 = I18 = I[8]_P
+
+// bank 120
+DP20_M2C_N = M15 = Q9  = Q[4]_N
+DP20_M2C_P = M14 = Q10 = Q[4]_P
+DP21_M2C_N = M11 = Q15 = Q[7]_N
+DP21_M2C_P = M10 = Q16 = Q[7]_P
+DP22_M2C_N = M7  = Q3  = Q[1]_N
+DP22_M2C_P = M6  = Q4  = Q[1]_P
+DP23_M2C_N = M3  = Q7  = Q[3]_N
+DP23_M2C_P = M2  = Q8  = Q[3]_P
+
+// bank 125
+DP14_M2C_N = Y19 = CLK_N
+DP14_M2C_P = Y18 = CLK_P
