@@ -14,13 +14,13 @@ import itertools
 my_dir = ""
 
 # Load DUT data
-my_subdir = "20240809_DAC/Sweep1ms"
+my_subdir = "20240812_DAC/"
 # csv_format = 'FMCW*.csv'
 csv_format = 'Trace*'
 normalize = False
 # plot_name = 'Received Power\n Normalized to Leakage [dB]'
 plot_name = 'Measured Power [dBm]'
-font_downscale = 1
+font_downscale = 2
 legend_loc = 'upper center'
 
 plt.rcParams['axes.unicode_minus'] = False

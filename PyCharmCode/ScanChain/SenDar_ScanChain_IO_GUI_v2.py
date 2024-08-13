@@ -25,7 +25,7 @@ w_size = 1500
 print_info = True
 Emulating = False
 port = 'COM5' if os.name == 'nt' else '/dev/ttys002' # COM9 for arduino uno, COM5 for arduino due, COM2<->4 are virtual
-baudrate = 9600
+baudrate = 115200
 scanchain_size = 648
 scan_data_size = 597
 
@@ -42,6 +42,7 @@ TX_combinedcode = False
 combinecode_text = f'combinedcode_' if TX_combinedcode else ''
 csv_name = f'config/Full_Scan_bits_newTX_{combinecode_text}unfolded.csv'
 print(f'Loading default scan config from {csv_name}.')
+scan_success = True
 
 def is_dark_mode():
     try:
@@ -123,6 +124,7 @@ class ScanBit:
 # GUI tool
 class DataGUI:
     def __init__(self, root, csv_path_name, my_ser, my_scan_count, my_SCAN_LIST):
+
         self.root = root
 
         self.csv_path = csv_path_name
@@ -133,6 +135,8 @@ class DataGUI:
         self.textbox = []
         self.signal_name = []
         self.DCOC_buttons = []
+        self.scan_success_text = StringVar()
+        self.scan_success_text.set('Initial Scan Successful' if scan_success else 'Initial Scan Unsuccessful')
 
         my_style = ttk.Style()
         my_style.configure('dark.TFrame', background='#3A3845')  # dark
@@ -142,6 +146,7 @@ class DataGUI:
         my_style.configure('red.TFrame', background='#FF0000')  # red
 
         # self.root.configure(bg='white')
+
         self.root.grid_rowconfigure(0, weight=0)
         self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_rowconfigure(2, weight=0)
@@ -150,7 +155,7 @@ class DataGUI:
 
 
         # title
-        self.label = tk.Label(self.root, text=f"SenDar Scanbits Control Dashboard v1.0", font=("Arial", 15, "bold"))
+        self.label = tk.Label(self.root, text=f"SenDar Scanbits Control Dashboard v1.1", font=("Arial", 15, "bold"))
         self.label.grid(column=0, row=0, sticky="ew")
 
         # Create labels, textboxes, and sliders for each data object
@@ -304,7 +309,7 @@ class DataGUI:
         center_col = int(num_vars / num_rows / 2)
 
         write_button = tkButton(controlFrame, text="Write Scan Chain",
-                                 command=lambda: scan_write_and_read(my_ser, scan_count, my_SCAN_LIST))
+                                 command=lambda: scan_write_and_read(my_ser, my_scan_count, my_SCAN_LIST,self))
         write_button.grid(column=center_col, row=num_rows + 1)
         controlFrame.columnconfigure(center_col, minsize=250)
 
@@ -313,7 +318,7 @@ class DataGUI:
         allreset_button.grid(column=center_col - 1, row=num_rows + 1)
 
         alloff_button = tkButton(controlFrame, text="Turn off All",
-                                  command=lambda: self.turnoff_all(my_ser, scan_count, my_SCAN_LIST))
+                                  command=lambda: self.turnoff_all(my_ser, my_scan_count, my_SCAN_LIST))
         alloff_button.grid(column=center_col + 1, row=num_rows + 1)
 
         # save load buttons
@@ -327,9 +332,13 @@ class DataGUI:
                                 command=lambda: self.load_file(my_ser, my_SCAN_LIST))
         load_button.grid(column=center_col + 1, row=num_rows + 1, padx=10)
 
+        # sucess display
+        self.scan_success_label = tk.Label(root, textvariable=self.scan_success_text, bg='#7FFFF0' if scan_success else 'red')
+        self.scan_success_label.grid(column=0,row=4,sticky="nswe")
+
         # path display
         self.csv_path_label = tk.Label(root, textvariable=self.csv_path_string, bg='#7FFF00')
-        self.csv_path_label.grid(column=0, row=4, sticky="nswe")
+        self.csv_path_label.grid(column=0, row=5, sticky="nswe")
 
         root.update_idletasks()
 
@@ -344,6 +353,18 @@ class DataGUI:
                 elif event.delta < 0:
                     # Scrolled down
                     self.canvas.yview_scroll(1, 'units')
+
+    def update_scan_success(self, success, done=True):
+        if done:
+            if success:
+                self.scan_success_text.set('Scan Successful')
+                self.scan_success_label.config(bg='#7FFFF0')
+            else:
+                self.scan_success_text.set('Scan Unsuccessful')
+                self.scan_success_label.config(bg='red')
+        else:
+            self.scan_success_text.set('Writing to the scan chain...')
+            self.scan_success_label.config(bg='orange')
 
     def update_value(self, my_SCAN_LIST, signal_name, event, index, value):
         # Update the corresponding data object's values
@@ -368,7 +389,7 @@ class DataGUI:
         except ValueError:
             pass  # Handle invalid input (e.g., non-numeric values)
 
-    def update_group_slider_n_textbox(self, group_name, change_all=False):
+    def update_group_slider_n_textbox(self, my_SCAN_LIST, group_name, change_all=False):
         for i, signal_name in enumerate(self.signal_name):
             display_val = str(my_SCAN_LIST[i].get_val()) if my_SCAN_LIST[i].msb_first else str(
                 self.bit_reverse(my_SCAN_LIST[i].get_val(), my_SCAN_LIST[i].bit_width))
@@ -387,10 +408,10 @@ class DataGUI:
 
     def update_group(self, my_ser, my_scan_count, my_SCAN_LIST, group_name, op):
         try:
-            group_op(my_ser, my_scan_count, my_SCAN_LIST, group_name, op)
+            group_op(my_ser, my_scan_count, my_SCAN_LIST, group_name, op, GUI=self)
 
             # update the sliders and text boxes
-            self.update_group_slider_n_textbox(group_name, change_all=False)
+            self.update_group_slider_n_textbox(my_SCAN_LIST, group_name, change_all=False)
 
             # update toggle buttons
             if group_name == 'TX' or group_name == 'VM':
@@ -434,10 +455,10 @@ class DataGUI:
                             modify_val(my_SCAN_LIST, cmd_name, scans.default_val if new_state == 1 else scans.off_bits)
                     else:
                         modify_val(my_SCAN_LIST, cmd_name, 0)
-            scan_write_and_read(my_ser, my_scan_count, my_SCAN_LIST)
+            scan_write_and_read(my_ser, my_scan_count, my_SCAN_LIST,self)
 
             # update the sliders and text boxes
-            self.update_group_slider_n_textbox(group_name, change_all=False)
+            self.update_group_slider_n_textbox(my_SCAN_LIST, group_name, change_all=False)
 
             # update buttons
             self.update_DCOC_buttons(group_name, new_state)
@@ -453,10 +474,10 @@ class DataGUI:
             for scans in my_SCAN_LIST:
                 cmd_name = scans.signal_name
                 modify_val(my_SCAN_LIST, cmd_name, scans.default_val)
-            scan_write_and_read(my_ser, my_scan_count, my_SCAN_LIST)
+            scan_write_and_read(my_ser, my_scan_count, my_SCAN_LIST,self)
 
             # update the sliders and text boxes
-            self.update_group_slider_n_textbox('', change_all=True)
+            self.update_group_slider_n_textbox(my_SCAN_LIST,'', change_all=True)
             # update toggle buttons
             for name in ['TX', 'VM']:
                 if any((obj.signal_name[0:9] == f'{name}_DCOC_S' and obj.value == 1) for obj in my_SCAN_LIST):
@@ -475,10 +496,10 @@ class DataGUI:
             for scans in my_SCAN_LIST:
                 cmd_name = scans.signal_name
                 modify_val(my_SCAN_LIST, cmd_name, scans.off_bits)
-            scan_write_and_read(my_ser, my_scan_count, my_SCAN_LIST)
+            scan_write_and_read(my_ser, my_scan_count, my_SCAN_LIST,self)
 
             # update the sliders and text boxes
-            self.update_group_slider_n_textbox('', change_all=True)
+            self.update_group_slider_n_textbox(my_SCAN_LIST,'', change_all=True)
 
             # update toggle buttons
             for name in ['TX', 'VM']:
@@ -672,13 +693,13 @@ def scan_write(ser, scan_string):
             while msg != MSG_WRITE:
                 # print('inner loop MSG: ' + msg + '.')
                 ser.write(CMD_WRITE)
-                time.sleep(0.4)
+                time.sleep(0.2)
                 msg = read_buffer(ser)
 
             # print("got MSG \'"+ msg + "\', Writing...")
-            time.sleep(0.4)
+            time.sleep(0.1)
             ser.write(scan_string.encode('utf-8'))
-            time.sleep(0.4)
+            time.sleep(0.35)
             msg = read_buffer(ser)
             # print("MSG :" + msg)
 
@@ -730,7 +751,11 @@ def scan_format(scan_count, SCAN_LIST):
 
 
 # Write and Read
-def scan_write_and_read(ser, scan_count, SCAN_LIST):
+def scan_write_and_read(ser, scan_count, SCAN_LIST, GUI=None):
+    global scan_success
+    if GUI:
+        GUI.update_scan_success(False, done=False)
+        GUI.root.update_idletasks()  # force updating
     scan_string = scan_format(scan_count, SCAN_LIST)
 
     # print(scan_string.encode('utf-8'))
@@ -752,6 +777,7 @@ def scan_write_and_read(ser, scan_count, SCAN_LIST):
             print_msg(textwrap.fill(scan_string, width=100))
             print_msg('[Got]:')
             print_msg(textwrap.fill(read_data, width=100))
+            scan_success = True
     else:
         error_msg("FAILURE: Read/write comparison incorrect")
         if print_info:
@@ -759,6 +785,9 @@ def scan_write_and_read(ser, scan_count, SCAN_LIST):
             error_msg(textwrap.fill(scan_string, width=100))
             error_msg('[Got]:')
             error_msg(textwrap.fill(read_data, width=100))
+            scan_success = False
+    if GUI:
+        GUI.update_scan_success(scan_success)
 
     if print_info:
         print('End of Scan Write.')
@@ -803,13 +832,13 @@ def turn_off(SCAN_LIST, signal_name):
         print(f"No object found with name '{signal_name}'")
 
 
-def group_op(ser, scan_count, SCAN_LIST, group_name, op):
+def group_op(ser, scan_count, SCAN_LIST, group_name, op, GUI=None):
     if op == 'on' or op == 'off':
         for scans in SCAN_LIST:
             cmd_name = scans.signal_name
             if cmd_name[0:2] == group_name:
                 modify_val(SCAN_LIST, cmd_name, scans.default_val if op == 'on' else scans.off_bits)
-        scan_write_and_read(ser, scan_count, SCAN_LIST)
+        scan_write_and_read(ser, scan_count, SCAN_LIST, GUI)
     elif op == 'ls':
         for scans in SCAN_LIST:
             cmd_name = scans.signal_name
