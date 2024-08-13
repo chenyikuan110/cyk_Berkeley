@@ -3,3 +3,6 @@
 
 # Ignore all .bin files
 *.bin
+
+# Ignore encoded vdh files
+*.vhd
