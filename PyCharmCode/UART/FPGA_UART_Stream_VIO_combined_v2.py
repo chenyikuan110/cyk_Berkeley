@@ -112,12 +112,13 @@ def int_to_bytes(num, width):
     for ii in range(width):
         byte_array.append(num & 0X00FF)
         num = int(num >> 8)
-    return byte_array
+    return byte_array #[::-1] # because I flipped the endianess in verilog
 
 
 # for command to addr conversion
 def parse_cmd(cmd, val):
     curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
+
     start_addr = curr_param.addr
     width = curr_param.width
     default_val = curr_param.default_val
@@ -144,7 +145,7 @@ def reset_all():
 
 # send msg
 def send_to_dut(port, addr, val):
-    for i in range(len(addr)):
+    for i in reversed(range(len(addr))):
         msg = '[sending] ' + str(val[i]) + ' to address ' \
               + str(addr[i]) + ': ' + str(49) + ' ' + str(addr[i]) + ' ' + str(val[i])
         print(highlight_msg(msg))
@@ -158,9 +159,11 @@ def run_vio():
     time.sleep(1.0)
 
     # start up
-    for params in start_up_params:
-        addr, val, ignore = parse_cmd(params.cmd, int(params.default_val))
-        send_to_dut(ser, addr, val)
+    # for params in start_up_params:
+    #     addr, val, ignore = parse_cmd(params.cmd, int(params.default_val))
+    #     send_to_dut(ser, addr, val)
+    cmd, addr, val = reset_all()
+    send_to_dut(ser, addr, val)
 
     while quit_flag == 0:
         task = input(highlight_msg('>> usage:VAR_NAME VAL, or VAR_NAME reset, for example, '
@@ -194,6 +197,10 @@ def run_vio():
                     cmd = 'TX_Mult_gain'
                 elif task[0] == 'vm_mag' or task[0] == 'VM_Mult_gain':
                     cmd = 'VM_Mult_gain'
+                elif task[0] == 'tx_mult_en' or task[0] == 'TX_Mult_enable':
+                    cmd = 'TX_Mult_enable'
+                elif task[0] == 'vm_mult_en' or task[0] == 'VM_Mult_enable':
+                    cmd = 'VM_Mult_enable'
                 else:
                     highlight_msg(f'Error: No such parameter!')
                     continue
@@ -206,7 +213,13 @@ def run_vio():
                     conv_factor = curr_param.conv_factor
                     unit = curr_param.unit
                 elif task[1] != 'all':
-                    addr, val, ignore = parse_cmd(cmd, int(task[1]))
+                    # set parameter manually
+                    curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
+                    if 'phase' or 'frequency' in curr_param.cmd:
+                        val_new = int(np.floor(int(task[1]) / curr_param.conv_factor))
+                    else:
+                        val_new = int(task[1])
+                    addr, val, ignore = parse_cmd(cmd, val_new)
                     curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
                     curr_val = curr_param.curr_val
                     conv_factor = curr_param.conv_factor
@@ -253,12 +266,22 @@ def run_vio():
                         cmd = 'TX_Mult_gain'
                     elif params[0] == 'vm_mag':
                         cmd = 'VM_Mult_gain'
+                    elif params[0] == 'tx_mult_en' or params[0] == 'TX_Mult_enable':
+                        cmd = 'TX_Mult_enable'
+                    elif params[0] == 'vm_mult_en' or params[0] == 'VM_Mult_enable':
+                        cmd = 'VM_Mult_enable'
                 else:
                     print(highlight_msg(">> Error: please enter tx/vm_freq/phase/mag"))
                     continue
                 start_val = int(params[1])
                 step_val = int(params[2])
                 num_steps = int(params[3])
+
+                curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
+                if 'phase' or 'frequency' in curr_param.cmd:
+                    start_val = int(np.floor(start_val / curr_param.conv_factor))
+                    step_val = int(np.floor(step_val / curr_param.conv_factor))
+
                 curr_val = start_val
                 for i in range(num_steps):
 
