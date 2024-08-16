@@ -16,6 +16,16 @@ d = 0.32
 freq_min = 120
 freq_max = 150
 
+plt.style.use(['science','no-latex'])
+# plt.rcParams.update({
+#     'font.size': 14,  # Base font size
+#     'axes.titlesize': 16,  # Title font size
+#     'axes.labelsize': 14,  # X and Y label font size
+#     'xtick.labelsize': 12,  # X tick label font size
+#     'ytick.labelsize': 12,  # Y tick label font size
+#     'legend.fontsize': 12,  # Legend font size
+# })
+
 
 def split_string(s, delimiters):
     # Create a regular expression pattern for the delimiters
@@ -93,18 +103,20 @@ horn_gain = interp_horn_gain(freq)
 
 path_loss = rec_power - (ref_power + oe_gain)
 
+# angle array
+angles = np.linspace(-180, 179.5, 720)
+
 # print(path_loss)
 
 # Load DUT data
-my_subdir = ""
+my_subdir = "Rad/Theta"
 
-csv_files = glob.glob(os.path.join(my_dir, my_subdir, 'TX_RF_2024*.csv'))
+csv_files = glob.glob(os.path.join(my_dir, my_subdir, 'TX_Rad*.csv'))
 
 # Plotting
 # plt.figure()
-plt.style.use(['science','no-latex'])
-fig_eirp, ax1 = plt.subplots()
-fig_imrr, ax2 = plt.subplots()
+
+fig_eirp, ax1 = plt.subplots(subplot_kw={'projection': 'polar'})
 # Print the file names
 curr_max = -100
 curr_max_imrr = -100
@@ -114,139 +126,75 @@ for i,file in enumerate(list(csv_files)):
     print(os.path.basename(file))
 
     file_name_parse = os.path.basename(file)
-    file_name_parse = split_string(file_name_parse,['_','.'])
+    file_name_parse = split_string(file_name_parse,['_'])
 
     # file = f'{my_dir}{my_subdir}RX_RF_20240724_1739.csv'
     tmp = pd.read_csv(file).values
     print(tmp.shape)
     if tmp.shape[0] > tmp.shape[1]:
         tmp = tmp.transpose()
-    print(tmp[4, :])
-    print(tmp[5, :])
-    freq_rec_pw = tmp[0, :]
-    rec_pw_lo = tmp[4, :]
-    rec_pw_hi = tmp[5, :]
-    rec_pw = 10*np.log10(10**(rec_pw_hi/10)+10**(rec_pw_lo/10))
-    imrr = np.abs(rec_pw_hi - rec_pw_lo)
-    print(rec_pw)
+    angle_rec_pw = tmp[0, :]
+    rec_pw = tmp[1,:]
+    print(angle_rec_pw)
     # print(freq_rec_pw, rec_pw)
     # Calculate gain and convert to numpy array
-
+    freq_string = file_name_parse[-2]
+    pattern = r'\d+\.?\d*'
+    match = re.search(pattern, freq_string)
+    if match:
+        freq_rec_pw = float(match.group())
+    else:
+        print("No number found in the string.")
+        exit()
+    print(freq_rec_pw)
     interp_eirp = interp1d(freq, path_loss, kind='cubic', fill_value="extrapolate")
 
     gain = rec_pw - interp_eirp(freq_rec_pw) + 3 # 3 dB due to the output balun
     gain = np.array(gain)
 
     # Calculate smoothed gain with moving average
-    window_size = 1
+    window_size = 2
     smoothed_gain = np.convolve(gain, np.ones(window_size)/window_size, mode='same')
 
-    print(file_name_parse)
-    file_name_write = '_'.join(file_name_parse[3:-1])
-    my_subdir = 'eirp'
-    os.makedirs(f'{my_dir}{my_subdir}', exist_ok=True)
-    csv_name = f'TX_RFGAIN_{file_name_write}.csv'
-    csv_path = os.path.join(my_dir, my_subdir, csv_name)
-
-    with open(csv_path, 'w', newline='') as csvfile:
-        print(csv_path)
-        csv_writer = csv.writer(csvfile, delimiter=',')
-        csv_writer.writerow(['freq']+ freq_rec_pw[0:len(freq_rec_pw)].tolist())
-        csv_writer.writerow(['eirp']+ smoothed_gain[0:len(freq_rec_pw)].tolist())
-
     # EIRP
-    line_max = smoothed_gain[window_size:len(freq_rec_pw)-window_size].max()
+    line_max = smoothed_gain[window_size:len(angle_rec_pw)-window_size].max()
     if line_max > curr_max:
         curr_max = line_max
-        curr_argmax = np.argmax(smoothed_gain[window_size:len(freq_rec_pw)-window_size])+window_size
+        curr_argmax = np.argmax(smoothed_gain[window_size:len(angle_rec_pw)-window_size])+window_size
 
-    line_max_imrr = imrr.max()
-    if line_max_imrr > curr_max_imrr:
-        curr_max_imrr = line_max_imrr
-        curr_argmax_imrr = np.argmax(imrr)
-
-    label_name = ' '.join(file_name_parse[3:-1])
+    label_name = f'Radiation at {freq_rec_pw} GHz'
     # ax1.plot(freq_rec_pw, gain, label=f'{label_name}',linewidth=2*2, alpha=1) # non IEEE
-    ax1.plot(freq_rec_pw, gain, label=f'{label_name}', alpha=1)  # IEEE
-    # ax1.plot(freq_rec_pw[0:len(freq_rec_pw)-window_size], smoothed_gain[0:len(freq_rec_pw)-window_size], linewidth=2,
-    # label=f'Smoothed {file_name_parse[-3]}')
+    ax1.plot(angle_rec_pw/180*np.pi, gain, label=f'{label_name}', alpha=0.4)  # IEEE
+    ax1.plot(angle_rec_pw[0:len(angle_rec_pw)-window_size]/180*np.pi, smoothed_gain[0:len(angle_rec_pw)-window_size], linewidth=2,
+     label=f'Smoothed {label_name}')
     # ax2.plot(freq_rec_pw,imrr,label=f'{label_name}',linewidth=2*2, alpha=1)
-    ax2.plot(freq_rec_pw, imrr, label=f'{label_name}', alpha=1) # IEEE
 
 ax=plt.gca()
 bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
-arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=40")
+# arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=40")
 # kw = dict(xycoords='data',textcoords="axes fraction",
 #           arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=12*2) # non IEEE
 kw = dict(xycoords='data',textcoords="axes fraction",
-          arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=6) # IEEE
-ax1.annotate(f'Max EIRP = {curr_max:.2f} dB', xy=(freq_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
+           bbox=bbox_props, ha="right", va="top",fontsize=20) # IEEE
+ax1.annotate(f'Max EIRP = {curr_max:.2f} dB', xy=(angle_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
 print(curr_argmax, curr_max)
 
-# ax1.axhline(y=curr_max, color='r', linestyle='--')
-# ax1.tick_params(labelsize = 28*2)
-# ax1.set_xlabel('Freq [GHz]',fontsize=30*2)
-# ax1.set_ylabel('Transmitter EIRP [dB]',fontsize=30*2)
-# ax1.grid(True,linestyle='--', dashes=(5, 10))
-# ax1.legend(loc='lower center', fontsize=14*2)
-ax1.axhline(y=curr_max, linestyle='--')
-ax1.set_xlabel('Freq [GHz]')
-ax1.set_ylabel('Transmitter EIRP [dB]')
+ax1.set_ylabel('Transmitter EIRP [dB]',fontsize=20,labelpad=35)
+yaxis_range = [-10, curr_max+15]
+
+yticks = np.arange(yaxis_range[0]+10, yaxis_range[1]-10, 5)  # Ticks with a step of 20
+ax1.set_yticks(yticks)
+ax1.set_yticklabels([str(tick) for tick in yticks], fontfamily='DejaVu Sans',fontsize='20')
+
 ax1.grid(True,linestyle='--',alpha=0.5)
 ax1.legend(loc='lower center')
+# angle_labels = [f"{int(np.degrees(angle))}\N{DEGREE SIGN}" for angle in ax1.get_xticks()]
+# ax1.set_xticklabels(angle_labels)
 
-xaxis_range = [int(freq_rec_pw[0]), int(freq_rec_pw[-1])]
-xticks = np.arange(xaxis_range[0], xaxis_range[1], 5)  # Ticks with a step of 20
-ax1.set_xticks(xticks)
-yaxis_range = [-60, curr_max+20]
+angle_ticks = np.deg2rad(np.arange(0, 360, 45))  # Ticks every 45 degrees
+angle_labels = [f"{int(np.rad2deg(angle))}\N{DEGREE SIGN}" for angle in angle_ticks]
 
-yticks = np.arange(yaxis_range[0]+10, yaxis_range[1]-10, 20)  # Ticks with a step of 20
-ax1.set_yticks(yticks)
-ax1.set_yticklabels([str(tick) for tick in yticks])
-
-ax1.axis([freq_rec_pw[0]-2,freq_rec_pw[-1]+2,yaxis_range[0],yaxis_range[1]])
-
-# ax2 = ax1.twiny()
-# scale_factor = 18
-# new_x = freq_rec_pw / scale_factor
-
-# Set the limits and ticks of the new x-axis
-# ax2.set_xlim(ax1.get_xlim()[0] * scale_factor, ax1.get_xlim()[1] * scale_factor)
-# ax2.set_xticks(ax1.get_xticks() * scale_factor)
-# ax2.set_xticklabels([f'{tick/scale_factor:.2f}' for tick in ax1.get_xticks()],fontsize=28)
-# ax2.set_xlabel('LO subharmonic frequency at input [GHz]',fontsize=30)
-
-plt.show(block=False)
-
-ax2=plt.gca()
-# kw2 = dict(xycoords='data',textcoords="axes fraction",
-#           arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=12*2)
-kw2 = dict(xycoords='data',textcoords="axes fraction",
-          arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=6)
-ax2.annotate(f'Max IMRR = {curr_max_imrr:.2f} dB', xy=(freq_rec_pw[curr_argmax_imrr], curr_max_imrr), xytext=(0.94,0.96), **kw2)
-print(curr_argmax_imrr, curr_max_imrr)
-
-# ax2.axhline(y=curr_max_imrr, color='r', linestyle='--')
-# ax2.tick_params(labelsize = 28*2)
-# ax2.set_xlabel('Freq [GHz]',fontsize=30*2)
-# ax2.set_ylabel('Transmitter IMRR [dB]',fontsize=30*2)
-# ax2.grid(True,linestyle='--', dashes=(5, 10))
-# ax2.legend(loc='lower center', fontsize=14*2)
-ax2.axhline(y=curr_max_imrr, linestyle='--')
-ax2.set_xlabel('Freq [GHz]')
-ax2.set_ylabel('Transmitter IMRR [dB]')
-ax2.grid(True,linestyle='--',alpha=0.5)
-ax2.legend(loc='lower center')
-
-xaxis_range = [int(freq_rec_pw[0]), int(freq_rec_pw[-1])]
-xticks = np.arange(xaxis_range[0], xaxis_range[1], 5)  # Ticks with a step of 20
-ax2.set_xticks(xticks)
-yaxis_range = [-40, curr_max_imrr+20]
-
-yticks = np.arange(yaxis_range[0]+10, yaxis_range[1]-10, 20)  # Ticks with a step of 20
-ax2.set_yticks(yticks)
-ax2.set_yticklabels([str(tick) for tick in yticks])
-
-ax2.axis([freq_rec_pw[0]-2,freq_rec_pw[-1]+2,yaxis_range[0],yaxis_range[1]])
+ax1.set_xticks(angle_ticks)
+ax1.set_xticklabels(angle_labels, fontfamily='DejaVu Sans',fontsize='20')
 
 plt.show()
