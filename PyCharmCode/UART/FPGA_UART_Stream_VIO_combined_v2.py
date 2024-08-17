@@ -40,6 +40,7 @@ else:
 emulation_on = False
 emulation_fft = False
 plot_individual_bits = False
+bit_index = 0
 plot_on = True
 scale_FS = False
 print_stream_msg = False
@@ -157,6 +158,7 @@ def send_to_dut(port, addr, val):
 # for vio param setting
 def run_vio():
     global quit_flag
+    global bit_index
     time.sleep(1.0)
 
     # start up
@@ -307,6 +309,14 @@ def run_vio():
                 quit_flag = 1
             elif task[0] == 'bits':
                 plot_individual_bits = not plot_individual_bits
+                print(f'Plotting the summed waveform' if not plot_individual_bits else f'Plotting bit {bit_index}')
+                while plot_individual_bits:
+                    bit_prompt_ans = input("which bit to plot?")
+                    if bit_prompt_ans == 'q':
+                        break
+                    else:
+                        bit_index = int(bit_prompt_ans)
+
         else:
             print(highlight_msg(">> Error: usage:VAR_NAME VAL, or VAR_NAME reset"))
 
@@ -421,35 +431,44 @@ def fpga_stream():
             if not plot_individual_bits:
                 line_real.set_data(x_range, I_data[0: plot_length: decimation])
                 line_imag.set_data(x_range, Q_data[0: plot_length: decimation])
-                ax[0].set_title('%d-th frame results I and Q' % count)
-                ax[0].legend(loc='lower center')
-                ax[0].set_xlim(0, plot_length)
-                if scale_FS:
-                    ax[0].set_ylim(-1, 1)
-                else:
-                    ax[0].set_ylim(scale * 1.2, -scale * 1.2)
-
-                line_dB.set_data(x_range, 20 * np.log10(mag_array))
-                peakpt_dB.set_offsets(np.c_[peak_index, peak_mag])
-
-                ax[1].set_title('%d-th frame results Mag (dB), peak bin mag is %.2f' % (count, peak_mag))
-                ax[1].set_xlim(0, plot_length)
-                if scale_FS:
-                    ax[1].set_ylim(-10 - 20 * np.log10(scale), 90 - 20 * np.log10(scale))
-                else:
-                    ax[1].set_ylim(-10, 90)
-
-                line_phase.set_data(x_range, np.angle(complex_array) * 180 / np.pi)
-                peakpt_phase.set_offsets(np.c_[peak_index, peak_phase])
-
-                ax[2].set_title('%d-th frame results phase (deg), peak bin phase is %.2f' % (count, peak_phase))
-                ax[2].set_xlim(0, plot_length)
-                ax[2].set_ylim(-200, 200)
-
-                plt.pause(0.001)
-                fig.tight_layout()
             else:
-                continue
+                line_real.set_data(x_range, (I_data[0: plot_length: decimation] >> bit_index) & 1)
+                line_imag.set_data(x_range, (Q_data[0: plot_length: decimation] >> bit_index) & 1)
+
+            ax[0].set_title('%d-th frame results I and Q' % count)
+            ax[0].legend(loc='lower center')
+            ax[0].set_xlim(0, plot_length)
+            if scale_FS:
+                ax[0].set_ylim(-1, 1)
+            else:
+                ax[0].set_ylim(scale * 1.2, -scale * 1.2)
+
+            if not plot_individual_bits:
+                line_dB.set_data(x_range, 20 * np.log10(mag_array))
+            else:
+                line_dB.set_data(x_range, np.linspace(0,0,len(x_range)))
+            peakpt_dB.set_offsets(np.c_[peak_index, peak_mag])
+
+            ax[1].set_title('%d-th frame results Mag (dB), peak bin mag is %.2f' % (count, peak_mag))
+            ax[1].set_xlim(0, plot_length)
+            if scale_FS:
+                ax[1].set_ylim(-10 - 20 * np.log10(scale), 90 - 20 * np.log10(scale))
+            else:
+                ax[1].set_ylim(-10, 90)
+
+            if not plot_individual_bits:
+                line_phase.set_data(x_range, np.angle(complex_array) * 180 / np.pi)
+            else:
+                line_dB.set_data(x_range, np.linspace(0,0,len(x_range)))
+
+            peakpt_phase.set_offsets(np.c_[peak_index, peak_phase])
+
+            ax[2].set_title('%d-th frame results phase (deg), peak bin phase is %.2f' % (count, peak_phase))
+            ax[2].set_xlim(0, plot_length)
+            ax[2].set_ylim(-200, 200)
+
+            plt.pause(0.001)
+            fig.tight_layout()
 
         if print_stream_msg:
             print(">> Received %.4d-th frame, peak index is %d, time elapsed is %.4f" % (count, peak_index, tik - tok))
