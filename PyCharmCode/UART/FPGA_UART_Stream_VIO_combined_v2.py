@@ -39,8 +39,9 @@ else:
 # emulation enable
 emulation_on = False
 emulation_fft = False
+plot_individual_bits = False
 plot_on = True
-scale_FS = True
+scale_FS = False
 print_stream_msg = False
 scale = 1 << 15
 decimation = 1
@@ -58,16 +59,16 @@ fund_tone = fsample / 4 / LUT_size
 
 # default params
 start_up_params = []
-start_up_params.append(vio_param('TX_DAC_frequency_word', 4096, 0, 3, fund_tone, 'Hz'))
+start_up_params.append(vio_param('TX_DAC_frequency_word', 16384, 0, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('TX_DAC_initial_phase', 0, 3, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_IQ_phase_diff', 32767, 6, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_Mult_enable', 1, 9, 1))
-start_up_params.append(vio_param('TX_Mult_gain', 32767, 10, 3))
-start_up_params.append(vio_param('VM_DAC_frequency_word', 4096, 13, 3, fund_tone, 'Hz'))
+start_up_params.append(vio_param('TX_Mult_gain', 2048, 10, 3))
+start_up_params.append(vio_param('VM_DAC_frequency_word', 16384, 13, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('VM_DAC_initial_phase', 0, 16, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_IQ_phase_diff', 32767, 19, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_Mult_enable', 1, 22, 1))
-start_up_params.append(vio_param('VM_Mult_gain', 4096, 23, 3))
+start_up_params.append(vio_param('VM_Mult_gain', 400, 23, 3))
 
 # dict_cmd = {
 #     'TX_DAC_frequency_word': [0, 2, 6]
@@ -304,6 +305,8 @@ def run_vio():
 
             elif task[0] == 'q':
                 quit_flag = 1
+            elif task[0] == 'bits':
+                plot_individual_bits = not plot_individual_bits
         else:
             print(highlight_msg(">> Error: usage:VAR_NAME VAL, or VAR_NAME reset"))
 
@@ -415,45 +418,39 @@ def fpga_stream():
         # update the plot
 
         if plot_on:
-            
-            # ax[0].clear()
-            # ax[0].(x_range, I_data[0:plot_length:decimation], label='FFT_out_real')
-            # ax[0].plot(x_range, Q_data[0:plot_length:decimation], label='FFT_out_imag')
-            line_real.set_data(x_range, I_data[0: plot_length: decimation])        
-            line_imag.set_data(x_range, Q_data[0: plot_length: decimation])
-            ax[0].set_title('%d-th frame results I and Q' % count)
-            ax[0].legend(loc='lower center')
-            ax[0].set_xlim(0, plot_length)
-            if scale_FS:
-                ax[0].set_ylim(-1, 1)
+            if not plot_individual_bits:
+                line_real.set_data(x_range, I_data[0: plot_length: decimation])
+                line_imag.set_data(x_range, Q_data[0: plot_length: decimation])
+                ax[0].set_title('%d-th frame results I and Q' % count)
+                ax[0].legend(loc='lower center')
+                ax[0].set_xlim(0, plot_length)
+                if scale_FS:
+                    ax[0].set_ylim(-1, 1)
+                else:
+                    ax[0].set_ylim(scale * 1.2, -scale * 1.2)
+
+                line_dB.set_data(x_range, 20 * np.log10(mag_array))
+                peakpt_dB.set_offsets(np.c_[peak_index, peak_mag])
+
+                ax[1].set_title('%d-th frame results Mag (dB), peak bin mag is %.2f' % (count, peak_mag))
+                ax[1].set_xlim(0, plot_length)
+                if scale_FS:
+                    ax[1].set_ylim(-10 - 20 * np.log10(scale), 90 - 20 * np.log10(scale))
+                else:
+                    ax[1].set_ylim(-10, 90)
+
+                line_phase.set_data(x_range, np.angle(complex_array) * 180 / np.pi)
+                peakpt_phase.set_offsets(np.c_[peak_index, peak_phase])
+
+                ax[2].set_title('%d-th frame results phase (deg), peak bin phase is %.2f' % (count, peak_phase))
+                ax[2].set_xlim(0, plot_length)
+                ax[2].set_ylim(-200, 200)
+
+                plt.pause(0.001)
+                fig.tight_layout()
             else:
-                ax[0].set_ylim(scale * 1.2, -scale * 1.2)
+                continue
 
-            # ax[1].clear()
-            # ax[1].plot(x_range, 20 * np.log10(mag_array))  # prevent zero
-            # ax[1].scatter(peak_index, peak_mag, color='r', marker='o')
-            line_dB.set_data(x_range, 20 * np.log10(mag_array))
-            peakpt_dB.set_offsets(np.c_[peak_index, peak_mag])
-
-            ax[1].set_title('%d-th frame results Mag (dB), peak bin mag is %.2f' % (count, peak_mag))
-            ax[1].set_xlim(0, plot_length)
-            if scale_FS:
-                ax[1].set_ylim(-10 - 20 * np.log10(scale), 90 - 20 * np.log10(scale))
-            else:
-                ax[1].set_ylim(-10, 90)
-
-            # ax[2].clear()
-            # ax[2].plot(x_range, np.angle(complex_array) * 180 / np.pi)
-            # ax[2].scatter(peak_index, peak_phase, color='r', marker='o')
-            line_phase.set_data(x_range, np.angle(complex_array) * 180 / np.pi)
-            peakpt_phase.set_offsets(np.c_[peak_index, peak_phase])
-
-            ax[2].set_title('%d-th frame results phase (deg), peak bin phase is %.2f' % (count, peak_phase))
-            ax[2].set_xlim(0, plot_length)
-            ax[2].set_ylim(-200, 200)
-
-            plt.pause(0.001)
-            fig.tight_layout()
         if print_stream_msg:
             print(">> Received %.4d-th frame, peak index is %d, time elapsed is %.4f" % (count, peak_index, tik - tok))
         tok = tik
