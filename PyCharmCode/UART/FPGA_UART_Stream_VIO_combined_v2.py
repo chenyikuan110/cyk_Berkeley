@@ -316,6 +316,8 @@ def run_vio():
                         break
                     else:
                         bit_index = int(bit_prompt_ans)
+            else:
+                print('invalid command')
 
         else:
             print(highlight_msg(">> Error: usage:VAR_NAME VAL, or VAR_NAME reset"))
