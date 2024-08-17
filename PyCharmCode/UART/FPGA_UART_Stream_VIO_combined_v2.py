@@ -39,6 +39,7 @@ else:
 # emulation enable
 emulation_on = False
 emulation_fft = False
+multiply_factor = 1
 plot_individual_bits = False
 bit_index = 0
 plot_on = True
@@ -159,6 +160,7 @@ def send_to_dut(port, addr, val):
 def run_vio():
     global quit_flag
     global bit_index
+    global plot_individual_bits
     time.sleep(1.0)
 
     # start up
@@ -174,7 +176,7 @@ def run_vio():
         task = task.split()
         conv_factor = 1
         unit = ''
-        if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q'])) or len(task) == 2:
+        if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q','bits'])) or len(task) == 2:
             if task[0] == 'reset':
                 if len(task) == 2:
                     if task[1] == 'all':
@@ -311,13 +313,17 @@ def run_vio():
                 plot_individual_bits = not plot_individual_bits
                 print(f'Plotting the summed waveform' if not plot_individual_bits else f'Plotting bit {bit_index}')
                 while plot_individual_bits:
-                    bit_prompt_ans = input("which bit to plot?")
+                    bit_prompt_ans = input("Which bit to plot? or type q to exit this mode\n")
+                    if bit_prompt_ans == '':
+                        continue
                     if bit_prompt_ans == 'q':
+                        plot_individual_bits = not plot_individual_bits
                         break
                     else:
                         bit_index = int(bit_prompt_ans)
-            else:
-                print('invalid command')
+                        print(
+                            f'Plotting the summed waveform' if not plot_individual_bits else f'Plotting bit {bit_index}')
+
 
         else:
             print(highlight_msg(">> Error: usage:VAR_NAME VAL, or VAR_NAME reset"))
@@ -357,6 +363,10 @@ def generate_byte_array(size):
 # prepare data container and empty plot
 def fpga_stream():
     global quit_flag
+    global bit_index
+    global multiply_factor
+    global plot_individual_bits
+
     x_range = range(0, plot_length, decimation)
     if plot_on:
         fig, ax = plt.subplots(nrows=3, ncols=1)
@@ -431,19 +441,20 @@ def fpga_stream():
 
         if plot_on:
             if not plot_individual_bits:
-                line_real.set_data(x_range, I_data[0: plot_length: decimation])
-                line_imag.set_data(x_range, Q_data[0: plot_length: decimation])
+                line_real.set_data(x_range, I_data[0: plot_length: decimation] if not multiply_factor > 1 else multiply_factor * np.real(complex_array[0: plot_length: decimation]))
+                line_imag.set_data(x_range, Q_data[0: plot_length: decimation] if not multiply_factor > 1 else multiply_factor * np.imag(complex_array[0: plot_length: decimation]))
             else:
-                line_real.set_data(x_range, (I_data[0: plot_length: decimation] >> bit_index) & 1)
-                line_imag.set_data(x_range, (Q_data[0: plot_length: decimation] >> bit_index) & 1)
+                line_real.set_data(x_range, scale * ((I_data[0: plot_length: decimation] >> bit_index) & 1))
+                line_imag.set_data(x_range, scale * ((Q_data[0: plot_length: decimation] >> bit_index) & 1))
 
-            ax[0].set_title('%d-th frame results I and Q' % count)
+            ax[0].set_title('%d-th frame results I and Q' % count if not plot_individual_bits else f'{bit_index}-th bit from I and Q')
             ax[0].legend(loc='lower center')
             ax[0].set_xlim(0, plot_length)
             if scale_FS:
                 ax[0].set_ylim(-1, 1)
             else:
-                ax[0].set_ylim(scale * 1.2, -scale * 1.2)
+                ax[0].set_ylim(-float(scale) * 1.2, float(scale) * 1.2)
+
 
             if not plot_individual_bits:
                 line_dB.set_data(x_range, 20 * np.log10(mag_array))
@@ -461,7 +472,7 @@ def fpga_stream():
             if not plot_individual_bits:
                 line_phase.set_data(x_range, np.angle(complex_array) * 180 / np.pi)
             else:
-                line_dB.set_data(x_range, np.linspace(0,0,len(x_range)))
+                line_phase.set_data(x_range, np.linspace(0,0,len(x_range)))
 
             peakpt_phase.set_offsets(np.c_[peak_index, peak_phase])
 
