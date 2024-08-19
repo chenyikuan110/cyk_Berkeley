@@ -45,6 +45,9 @@ bit_index = 0
 plot_on = True
 scale_FS = False
 print_stream_msg = False
+display_freq = False
+aggregate = False
+aggregate_size = 16
 scale = 1 << 15
 decimation = 1
 
@@ -56,17 +59,19 @@ num_channels = 2
 transmit_length = array_length * bytes_per_number * num_channels
 plot_length = array_length
 
-fsample = 80E6
-fund_tone = fsample / 4 / LUT_size
+fsample_DAC = 80E6
+fund_tone = fsample_DAC / 4 / LUT_size
+
+fsample_ADC = 10E6
 
 # default params
 start_up_params = []
-start_up_params.append(vio_param('TX_DAC_frequency_word', 16384, 0, 3, fund_tone, 'Hz'))
+start_up_params.append(vio_param('TX_DAC_frequency_word', 4096, 0, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('TX_DAC_initial_phase', 0, 3, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_IQ_phase_diff', 32767, 6, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_Mult_enable', 1, 9, 1))
 start_up_params.append(vio_param('TX_Mult_gain', 2048, 10, 3))
-start_up_params.append(vio_param('VM_DAC_frequency_word', 16384, 13, 3, fund_tone, 'Hz'))
+start_up_params.append(vio_param('VM_DAC_frequency_word', 4096, 13, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('VM_DAC_initial_phase', 0, 16, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_IQ_phase_diff', 32767, 19, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_Mult_enable', 1, 22, 1))
@@ -98,6 +103,16 @@ Q_received_matrix = []
 # this flag kills both threads
 quit_flag = 0
 
+
+# calculate an average array
+def average_arrays(arrays):
+    # Convert list of arrays to a NumPy array for easy element-wise operations
+    np_arrays = np.array(arrays)
+
+    # Calculate the element-wise average
+    average_array = np.mean(np_arrays, axis=0)
+
+    return average_array
 
 # print with color utility
 def highlight_msg(msg):
@@ -160,6 +175,9 @@ def send_to_dut(port, addr, val):
 def run_vio():
     global quit_flag
     global bit_index
+    global display_freq
+    global aggregate
+    global aggregate_size
     global plot_individual_bits
     time.sleep(1.0)
 
@@ -176,7 +194,7 @@ def run_vio():
         task = task.split()
         conv_factor = 1
         unit = ''
-        if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q','bits'])) or len(task) == 2:
+        if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q','bits','unit','aggregate'])) or len(task) == 2:
             if task[0] == 'reset':
                 if len(task) == 2:
                     if task[1] == 'all':
@@ -211,7 +229,11 @@ def run_vio():
                     continue
 
             if len(task) == 2:
-                if task[1] == 'reset':
+                if task[0] == 'aggregate':
+                    aggregate_size = int(task[1])
+                    print(f'Setting aggregate size to {aggregate_size}')
+                    continue
+                elif task[1] == 'reset':
                     curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
                     addr, ignore, val = parse_cmd(cmd, curr_param.default_val)
                     curr_val = curr_param.curr_val
@@ -323,7 +345,12 @@ def run_vio():
                         bit_index = int(bit_prompt_ans)
                         print(
                             f'Plotting the summed waveform' if not plot_individual_bits else f'Plotting bit {bit_index}')
-
+            elif task[0] == 'unit':
+                display_freq = not display_freq
+                print(f'Plot x-axis is bin-index' if not display_freq else f'Plot x-axis is frequency (Hz).')
+            elif task[0] == 'aggregate':
+                aggregate = not aggregate
+                print(f'Plotting raw input from FPGA' if not aggregate else f'Plotting post-aggregate results.')
 
         else:
             print(highlight_msg(">> Error: usage:VAR_NAME VAL, or VAR_NAME reset"))
@@ -365,6 +392,9 @@ def fpga_stream():
     global quit_flag
     global bit_index
     global multiply_factor
+    global display_freq
+    global aggregate
+    global aggregate_size
     global plot_individual_bits
 
     x_range = range(0, plot_length, decimation)
@@ -374,17 +404,21 @@ def fpga_stream():
         ax[0].clear()
 
         ax[0].set_title('Awaiting frame results I and Q')
-        ax[0].set_xlim(0, plot_length)
+        x_max = plot_length
+        if display_freq:
+            x_max = plot_length / array_length * fsample_ADC / 2
+        x_range_plot = [x * (x_max / plot_length) for x in x_range]
+        ax[0].set_xlim(0, x_max)
         ax[0].set_ylim(-40000, 40000)
 
         ax[1].clear()
         ax[1].set_title('Awaiting frame results Mag (dB)')
-        ax[1].set_xlim(0, plot_length)
+        ax[1].set_xlim(0, x_max)
         ax[1].set_ylim(-10, 80)
 
         ax[2].clear()
         ax[2].set_title('Awaiting frame results phase (deg)')
-        ax[2].set_xlim(0, plot_length)
+        ax[2].set_xlim(0, x_max)
         ax[2].set_ylim(-200, 200)
 
         fig.suptitle('Received Data from FPGA with %s output' % ('normalized' if scale_FS else 'un-normalized'))
@@ -395,19 +429,25 @@ def fpga_stream():
     print("starts receiving...")
     tok = time.time()
 
-    line_real, = ax[0].plot(x_range, np.linspace(0,0,len(x_range)), label='FFT_out_real')
-    line_imag, = ax[0].plot(x_range, np.linspace(0,0,len(x_range)), label='FFT_out_imag')
+    line_real, = ax[0].plot(x_range_plot, np.linspace(0,0,len(x_range)), label='FFT_out_real')
+    line_imag, = ax[0].plot(x_range_plot, np.linspace(0,0,len(x_range)), label='FFT_out_imag')
 
-    line_dB, = ax[1].plot(x_range, np.linspace(0,0,len(x_range)))  # prevent zero
+    line_dB, = ax[1].plot(x_range_plot, np.linspace(0,0,len(x_range)))  # prevent zero
     peakpt_dB = ax[1].scatter([], [], color='r', marker='o')
 
-    line_phase, = ax[2].plot(x_range, np.linspace(0,0,len(x_range)))
+    line_phase, = ax[2].plot(x_range_plot, np.linspace(0,0,len(x_range)))
     peakpt_phase = ax[2].scatter([], [], color='r', marker='o')
 
+    aggregated_results_I = []
+    aggregated_results_Q = []
     while quit_flag != 1:
         if count == 10500:
             break
 
+        x_max = plot_length
+        if display_freq:
+            x_max = plot_length / array_length * fsample_ADC / 2
+        x_range_plot = [x * (x_max / plot_length) for x in x_range]
         # receive sequence via UART
         if not emulation_on:
             reader = ser.read(transmit_length)
@@ -426,6 +466,21 @@ def fpga_stream():
         Q_data = result[0:array_length * bytes_per_number:2]
         I_data = result[1:array_length * bytes_per_number:2]
 
+        aggregated_results_I.append(I_data)
+        aggregated_results_Q.append(Q_data)
+
+        # If we have more than 5 inputs, remove the oldest one
+        if len(aggregated_results_I) > aggregate_size:
+            aggregated_results_I.pop(0)
+            aggregated_results_Q.pop(0)
+
+        Q_aggregated = average_arrays(aggregated_results_Q)
+        I_aggregated = average_arrays(aggregated_results_I)
+
+        if aggregate:
+            Q_data = Q_aggregated
+            I_data = I_aggregated
+
         if scale_FS:
             Q_data = Q_data / scale
             I_data = I_data / scale
@@ -441,43 +496,42 @@ def fpga_stream():
 
         if plot_on:
             if not plot_individual_bits:
-                line_real.set_data(x_range, I_data[0: plot_length: decimation] if not multiply_factor > 1 else multiply_factor * np.real(complex_array[0: plot_length: decimation]))
-                line_imag.set_data(x_range, Q_data[0: plot_length: decimation] if not multiply_factor > 1 else multiply_factor * np.imag(complex_array[0: plot_length: decimation]))
+                line_real.set_data(x_range_plot, I_data[0: plot_length: decimation] if not multiply_factor > 1 else multiply_factor * np.real(complex_array[0: plot_length: decimation]))
+                line_imag.set_data(x_range_plot, Q_data[0: plot_length: decimation] if not multiply_factor > 1 else multiply_factor * np.imag(complex_array[0: plot_length: decimation]))
             else:
-                line_real.set_data(x_range, scale * ((I_data[0: plot_length: decimation] >> bit_index) & 1))
-                line_imag.set_data(x_range, scale * ((Q_data[0: plot_length: decimation] >> bit_index) & 1))
+                line_real.set_data(x_range_plot, scale * ((I_data[0: plot_length: decimation] >> bit_index) & 1))
+                line_imag.set_data(x_range_plot, scale * ((Q_data[0: plot_length: decimation] >> bit_index) & 1))
 
             ax[0].set_title('%d-th frame results I and Q' % count if not plot_individual_bits else f'{bit_index}-th bit from I and Q')
             ax[0].legend(loc='lower center')
-            ax[0].set_xlim(0, plot_length)
+            ax[0].set_xlim(0, x_max)
             if scale_FS:
                 ax[0].set_ylim(-1, 1)
             else:
                 ax[0].set_ylim(-float(scale) * 1.2, float(scale) * 1.2)
 
-
             if not plot_individual_bits:
-                line_dB.set_data(x_range, 20 * np.log10(mag_array))
+                line_dB.set_data(x_range_plot, 20 * np.log10(mag_array))
             else:
-                line_dB.set_data(x_range, np.linspace(0,0,len(x_range)))
+                line_dB.set_data(x_range_plot, np.linspace(0,0,len(x_range)))
             peakpt_dB.set_offsets(np.c_[peak_index, peak_mag])
 
             ax[1].set_title('%d-th frame results Mag (dB), peak bin mag is %.2f' % (count, peak_mag))
-            ax[1].set_xlim(0, plot_length)
+            ax[1].set_xlim(0, x_max)
             if scale_FS:
                 ax[1].set_ylim(-10 - 20 * np.log10(scale), 90 - 20 * np.log10(scale))
             else:
                 ax[1].set_ylim(-10, 90)
 
             if not plot_individual_bits:
-                line_phase.set_data(x_range, np.angle(complex_array) * 180 / np.pi)
+                line_phase.set_data(x_range_plot, np.angle(complex_array) * 180 / np.pi)
             else:
-                line_phase.set_data(x_range, np.linspace(0,0,len(x_range)))
+                line_phase.set_data(x_range_plot, np.linspace(0,0,len(x_range)))
 
             peakpt_phase.set_offsets(np.c_[peak_index, peak_phase])
 
             ax[2].set_title('%d-th frame results phase (deg), peak bin phase is %.2f' % (count, peak_phase))
-            ax[2].set_xlim(0, plot_length)
+            ax[2].set_xlim(0, x_max)
             ax[2].set_ylim(-200, 200)
 
             plt.pause(0.001)
