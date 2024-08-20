@@ -100,6 +100,7 @@ start_up_params.append(vio_param('VM_Mult_gain', 400, 23, 3))
 dt = np.dtype(np.int16)
 dt = dt.newbyteorder('>')
 
+
 # input("Open a serial program in another terminal, then hit Enter")
 
 # input("Open a serial program in another terminal, then hit Enter")
@@ -162,7 +163,7 @@ def int_to_bytes(num, width):
     for ii in range(width):
         byte_array.append(num & 0X00FF)
         num = int(num >> 8)
-    return byte_array #[::-1] # because I flipped the endianess in verilog
+    return byte_array  # [::-1] # because I flipped the endianess in verilog
 
 
 # for command to addr conversion
@@ -225,6 +226,9 @@ class data_GUI:
 
         # this flag kills both threads
         self.quit_flag = False
+        self.window_show = True
+        self.scale_FS = scale_FS
+        self.scale = scale
         self.plot_frequency = tk.BooleanVar(value=display_freq)
         self.aggregate = tk.BooleanVar(value=aggregate)
         self.aggregate_size = aggregate_size
@@ -232,17 +236,21 @@ class data_GUI:
         # Internalize
         self.root = root
 
+        # Title
+        self.Titlelabel = tk.Label(self.root, text=f"SenDar ADC Display v2.0", font=("Arial", 15, "bold"))
+        self.Titlelabel.grid(column=0, row=0, sticky="ew")
+
         # Checkbox frame
         self.CB_Frame = ttk.Frame(self.root)
-        self.CB_Frame.grid(row=0, column=0, sticky='ew')
+        self.CB_Frame.grid(row=1, column=0, sticky='ew')
 
         # Create a frame for the Matplotlib figure
         self.Plot_Frame = ttk.Frame(self.root)
-        self.Plot_Frame.grid(row=1, column=0, sticky='news')
+        self.Plot_Frame.grid(row=2, column=0, sticky='news')
 
         # Create a frame for sliders
         self.Option_Frame = ttk.Frame(self.root)
-        self.Option_Frame.grid(row=2, column=0, sticky='news')
+        self.Option_Frame.grid(row=3, column=0, sticky='news')
 
         # Configure root grid layout
         self.root.grid_rowconfigure(1, weight=1)
@@ -254,8 +262,10 @@ class data_GUI:
         self.var_Mag = tk.BooleanVar(value=True)
         self.var_Phase = tk.BooleanVar(value=True)
 
-        self.cb_I_data = ttk.Checkbutton(self.CB_Frame, text="I_data", variable=self.var_I_data, command=self.toggle_curve)
-        self.cb_Q_data = ttk.Checkbutton(self.CB_Frame, text="Q_data", variable=self.var_Q_data, command=self.toggle_curve)
+        self.cb_I_data = ttk.Checkbutton(self.CB_Frame, text="I_data", variable=self.var_I_data,
+                                         command=self.toggle_curve)
+        self.cb_Q_data = ttk.Checkbutton(self.CB_Frame, text="Q_data", variable=self.var_Q_data,
+                                         command=self.toggle_curve)
         self.cb_Mag = ttk.Checkbutton(self.CB_Frame, text="Magnitude", variable=self.var_Mag, command=self.toggle_curve)
         self.cb_Phase = ttk.Checkbutton(self.CB_Frame, text="Phase", variable=self.var_Phase, command=self.toggle_curve)
 
@@ -283,21 +293,25 @@ class data_GUI:
         # Plot initial curves
         # Create a figure and axis for plotting
         self.fig, self.ax = plt.subplots()
-        self.I_data, = self.ax.plot(self.x_range_plot, np.linspace(0,0,len(self.x_range_plot)), label='Curve I')
-        self.Q_data, = self.ax.plot(self.x_range_plot, np.linspace(0,0,len(self.x_range_plot)), label='Curve Q')
-        self.Phase, = self.ax.plot(self.x_range_plot, np.linspace(0,0,len(self.x_range_plot)), label='Curve phase')
+        self.I_data, = self.ax.plot(self.x_range_plot, np.linspace(0, 0, len(self.x_range_plot)), label='Curve I')
+        self.Q_data, = self.ax.plot(self.x_range_plot, np.linspace(0, 0, len(self.x_range_plot)), label='Curve Q')
+        self.Phase, = self.ax.plot(self.x_range_plot, np.linspace(0, 0, len(self.x_range_plot)), color='red',
+                                   label='Curve phase')
 
         self.ax2 = self.ax.twinx()
-        self.Mag, = self.ax2.plot(self.x_range_plot, np.linspace(0, 0, len(self.x_range_plot)), label='Curve mag')
+        self.Mag, = self.ax2.plot(self.x_range_plot, np.linspace(0, 0, len(self.x_range_plot)), color='green',
+                                  label='Curve mag')
 
-        # Set initial limits
-        self.ax.set_xlim(self.x_min, self.x_max)
-        self.ax.set_ylim(self.y_min, self.y_max)
+        self.y2_min = -10
+        self.y2_max = 100
 
-        if scale_FS:
-            self.ax2.set_ylim(-10 - 20 * np.log10(scale), 90 - 20 * np.log10(scale))
+        if self.scale_FS:
+            self.y2_min = -10 - 20 * np.log10(self.scale)
+            self.y2_max = 100 - 20 * np.log10(self.scale)
         else:
-            self.ax2.set_ylim(-10, 90)
+            self.y2_min = -10
+            self.y2_max = 100
+        self.ax2.set_ylim(self.y2_min, self.y2_max)
         self.ax2.tick_params(axis='y', labelcolor='tab:green')
 
         # Add legend
@@ -307,7 +321,7 @@ class data_GUI:
         # Add handles and labels from the second axis to the first
         handles += handles2
         labels += labels2
-        self.ax.legend(handles,labels,loc='lower center')
+        self.ax.legend(handles, labels, loc='lower center')
         # self.ax2.legend()
 
         # Add to Canvas
@@ -320,8 +334,9 @@ class data_GUI:
 
         # Configure the Option Frame
         # Unit
-        self.freq_plot_button = ttk.Checkbutton(self.Option_Frame, text="Plot Frequency (Hz)", variable=self.plot_frequency,
-                                         command=self.toggle_unit)
+        self.freq_plot_button = ttk.Checkbutton(self.Option_Frame, text="Plot Frequency (Hz)",
+                                                variable=self.plot_frequency,
+                                                command=self.toggle_unit)
         self.freq_plot_button.grid(row=0, column=0, sticky='w', padx=10, pady=5)
 
         # Aggregate (More Averaging)
@@ -335,7 +350,7 @@ class data_GUI:
 
         # X
         self.xlim_frame = tk.Frame(self.Option_Frame)
-        self.xlim_frame.grid(row=1, column=0, sticky='nsew',pady=5)
+        self.xlim_frame.grid(row=1, column=0, sticky='nsew', pady=5)
         # Create sliders and textboxes for x-axis limits
         self.xlim_label = tk.Label(self.xlim_frame, text="X Limits (min,max):")
         self.xlim_label.grid(row=0, column=0, padx=5)
@@ -344,18 +359,20 @@ class data_GUI:
         self.xlim_entry.insert(0, f'{self.x_min},{self.x_max}')
         self.xlim_entry.grid(row=0, column=1, padx=5)
 
-        self.xlim_min_slider = tk.Scale(self.xlim_frame, from_=0, to=self.x_max, orient=tk.HORIZONTAL, label="X Limit Min")
-        self.xlim_min_slider.bind("<ButtonRelease-1>", lambda event: self.update_limits_from_sliders())
+        self.xlim_min_slider = tk.Scale(self.xlim_frame, from_=0, to=self.x_max, orient=tk.HORIZONTAL,
+                                        label="X Limit Min")
+        self.xlim_min_slider.bind("<B1-Motion>", lambda event: self.update_limits_from_sliders())
         self.xlim_min_slider.set(self.x_min)
         self.xlim_min_slider.grid(row=0, column=2, padx=5)
-        self.xlim_max_slider = tk.Scale(self.xlim_frame, from_=0, to=self.x_max, orient=tk.HORIZONTAL, label="X Limit Max")
-        self.xlim_max_slider.bind("<ButtonRelease-1>", lambda event: self.update_limits_from_sliders())
+        self.xlim_max_slider = tk.Scale(self.xlim_frame, from_=0, to=self.x_max, orient=tk.HORIZONTAL,
+                                        label="X Limit Max")
+        self.xlim_max_slider.bind("<B1-Motion>", lambda event: self.update_limits_from_sliders())
         self.xlim_max_slider.set(self.x_max)
         self.xlim_max_slider.grid(row=0, column=3, padx=5)
-        
+
         # Y
         self.ylim_frame = tk.Frame(self.Option_Frame)
-        self.ylim_frame.grid(row=2, column=0, sticky='nsew',pady=5)
+        self.ylim_frame.grid(row=2, column=0, sticky='nsew', pady=5)
         # Create sliders and textboxes for x-axis limits
         self.ylim_label = tk.Label(self.ylim_frame, text="Y Limits (min,max):")
         self.ylim_label.grid(row=0, column=0, padx=5)
@@ -364,18 +381,43 @@ class data_GUI:
         self.ylim_entry.insert(0, f'{self.y_min},{self.y_max}')
         self.ylim_entry.grid(row=0, column=1, padx=5)
 
-        self.ylim_min_slider = tk.Scale(self.ylim_frame, from_=self.y_min, to=self.y_max, orient=tk.HORIZONTAL, label="Y Limit Min")
-        self.ylim_min_slider.bind("<ButtonRelease-1>", lambda event: self.update_limits_from_sliders())
+        self.ylim_min_slider = tk.Scale(self.ylim_frame, from_=self.y_min, to=self.y_max, orient=tk.HORIZONTAL,
+                                        label="Y Limit Min")
+        self.ylim_min_slider.bind("<B1-Motion>", lambda event: self.update_limits_from_sliders())
         self.ylim_min_slider.set(self.y_min)
         self.ylim_min_slider.grid(row=0, column=2, padx=5)
-        self.ylim_max_slider = tk.Scale(self.ylim_frame, from_=self.y_min, to=self.y_max, orient=tk.HORIZONTAL, label="Y Limit Max")
-        self.ylim_max_slider.bind("<ButtonRelease-1>", lambda event: self.update_limits_from_sliders())
+        self.ylim_max_slider = tk.Scale(self.ylim_frame, from_=self.y_min, to=self.y_max, orient=tk.HORIZONTAL,
+                                        label="Y Limit Max")
+        self.ylim_max_slider.bind("<B1-Motion>", lambda event: self.update_limits_from_sliders())
         self.ylim_max_slider.set(self.y_max)
         self.ylim_max_slider.grid(row=0, column=3, padx=5)
+
+        # Y2
+        self.ylim2_frame = tk.Frame(self.Option_Frame)
+        self.ylim2_frame.grid(row=3, column=0, sticky='nsew', pady=5)
+        # Create sliders and textboxes for x-axis limits
+        self.ylim2_label = tk.Label(self.ylim2_frame, text="Y Limits (min,max):")
+        self.ylim2_label.grid(row=0, column=0, padx=5)
+
+        self.ylim2_entry = tk.Entry(self.ylim2_frame)
+        self.ylim2_entry.insert(0, f'{self.y2_min},{self.y2_max}')
+        self.ylim2_entry.grid(row=0, column=1, padx=5)
+
+        self.ylim2_min_slider = tk.Scale(self.ylim2_frame, from_=self.y2_min, to=self.y2_max, orient=tk.HORIZONTAL,
+                                         label="Y Limit Min")
+        self.ylim2_min_slider.bind("<B1-Motion>", lambda event: self.update_limits_from_sliders())
+        self.ylim2_min_slider.set(self.y2_min)
+        self.ylim2_min_slider.grid(row=0, column=2, padx=5)
+        self.ylim2_max_slider = tk.Scale(self.ylim2_frame, from_=self.y2_min, to=self.y2_max, orient=tk.HORIZONTAL,
+                                         label="Y Limit Max")
+        self.ylim2_max_slider.bind("<B1-Motion>", lambda event: self.update_limits_from_sliders())
+        self.ylim2_max_slider.set(self.y2_max)
+        self.ylim2_max_slider.grid(row=0, column=3, padx=5)
 
         # Bind textboxes to update sliders
         self.xlim_entry.bind("<FocusOut>", lambda e: self.update_limits_from_text())
         self.ylim_entry.bind("<FocusOut>", lambda e: self.update_limits_from_text())
+        self.ylim2_entry.bind("<FocusOut>", lambda e: self.update_limits_from_text())
 
         # Start the thread for updating the plot
         self.vio_thread = threading.Thread(target=self.run_vio)
@@ -387,12 +429,35 @@ class data_GUI:
         self.update_thread.start()
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        # add a flag monitor
+        self.root.after(1, self.check_quit_flag())
+
+        print("Running...")
+
+    def safe_destroy(self):
+        try:
+            print("Destroying root...")
+            self.update_thread.join()
+            self.vio_thread.join()
+            self.root.quit()
+        except Exception as e:
+            print(f"Error while destroying root: {e}")
+
+    def check_quit_flag(self, event=None):
+        if self.quit_flag:
+            self.update_thread.join()
+            self.vio_thread.join()
+            print('Quit detected, Cleaning up...')
+            self.root.after(0, self.safe_destroy)
+
+        else:
+            self.root.after(1, self.check_quit_flag)
 
     def on_closing(self):
-        self.quit_flag = True
+        self.window_show = False
         self.update_thread.join()
-        self.vio_thread.join()
-        self.root.destroy()
+        self.root.withdraw()
+        print('Window closed, use VIO command line to quit')
 
     # Function to update the plot limits based on the sliders
     def update_limits_from_sliders(self):
@@ -400,39 +465,53 @@ class data_GUI:
         self.x_max = self.xlim_max_slider.get()
         self.y_min = self.ylim_min_slider.get()
         self.y_max = self.ylim_max_slider.get()
+        self.y2_min = self.ylim2_min_slider.get()
+        self.y2_max = self.ylim2_max_slider.get()
 
-        self.xlim_min_slider.configure(from_=0, to=self.x_max-1)
+        self.xlim_min_slider.configure(from_=0, to=self.x_max - 1)
         self.xlim_max_slider.configure(from_=self.x_min, to=self.x_range_max)
-        self.ylim_min_slider.configure(from_=-40000, to=self.y_max-1)
+        self.ylim_min_slider.configure(from_=-40000, to=self.y_max - 1)
         self.ylim_max_slider.configure(from_=self.y_min, to=40000)
+        self.ylim2_min_slider.configure(from_=-10 - 20 * np.log10(self.scale) if self.scale_FS else -10,
+                                        to=self.y2_max - 1)
+        self.ylim2_max_slider.configure(from_=self.y2_min, to=100 - 20 * np.log10(self.scale) if self.scale_FS else 100)
 
         self.ax.set_xlim([self.x_min, self.x_max])
         self.ax.set_ylim([self.y_min, self.y_max])
+        self.ax2.set_ylim([self.y2_min, self.y2_max])
+
         self.canvas.draw()
         # Update textboxes when sliders are changed
         self.xlim_entry.delete(0, tk.END)
         self.xlim_entry.insert(0, f"{self.x_min},{self.x_max}")
         self.ylim_entry.delete(0, tk.END)
         self.ylim_entry.insert(0, f"{self.y_min},{self.y_max}")
-
+        self.ylim2_entry.delete(0, tk.END)
+        self.ylim2_entry.insert(0, f"{self.y2_min},{self.y2_max}")
 
     def update_limits_from_text(self):
         try:
-            self.xlim = list(map(float, self.xlim_entry.get().split(',')))
-            self.ylim = list(map(float, self.ylim_entry.get().split(',')))
+            xlim = list(map(float, self.xlim_entry.get().split(',')))
+            ylim = list(map(float, self.ylim_entry.get().split(',')))
+            ylim2 = list(map(float, self.ylim2_entry.get().split(',')))
 
-            self.xlim_min_slider.set(self.xlim[0])
-            self.xlim_max_slider.set(self.xlim[1])
-            self.ylim_min_slider.set(self.ylim[0])
-            self.ylim_max_slider.set(self.ylim[1])
+            self.xlim_min_slider.set(xlim[0])
+            self.xlim_max_slider.set(xlim[1])
+            self.ylim_min_slider.set(ylim[0])
+            self.ylim_max_slider.set(ylim[1])
+            self.ylim2_min_slider.set(ylim2[0])
+            self.ylim2_max_slider.set(ylim2[1])
 
             self.x_min = self.xlim_min_slider.get()
             self.x_max = self.xlim_max_slider.get()
             self.y_min = self.ylim_min_slider.get()
             self.y_max = self.ylim_max_slider.get()
+            self.y2_min = self.ylim2_min_slider.get()
+            self.y2_max = self.ylim2_max_slider.get()
 
             self.ax.set_xlim([self.x_min, self.x_max])
             self.ax.set_ylim([self.y_min, self.y_max])
+            self.ax2.set_ylim([self.y2_min, self.y2_max])
             self.canvas.draw()
 
         except:
@@ -459,7 +538,7 @@ class data_GUI:
             if handle.get_visible():
                 new_handles.append(handle)
                 new_labels.append(label)
-        self.ax.legend(new_handles, new_labels,loc='lower center')
+        self.ax.legend(new_handles, new_labels, loc='lower center')
         self.canvas.draw()
 
     def toggle_unit(self):
@@ -472,14 +551,14 @@ class data_GUI:
         self.x_range_max = plot_length
         if self.plot_frequency.get():
             self.x_range_max = plot_length / array_length * fsample_ADC / 2
-        self.x_min = self.x_min * x_factor if self.plot_frequency.get() else self.x_min /x_factor
-        self.x_max = self.x_max * x_factor if self.plot_frequency.get() else self.x_max /x_factor
+        self.x_min = self.x_min * x_factor if self.plot_frequency.get() else self.x_min / x_factor
+        self.x_max = self.x_max * x_factor if self.plot_frequency.get() else self.x_max / x_factor
         # print('after',self.x_min, self.x_max)
 
         # update sliders
-        self.xlim_min_slider.configure(from_=0, to=self.x_max-1)
+        self.xlim_min_slider.configure(from_=0, to=self.x_max - 1)
         self.xlim_max_slider.configure(from_=self.x_min, to=self.x_range_max)
-        self.ylim_min_slider.configure(from_=-40000, to=self.y_max-1)
+        self.ylim_min_slider.configure(from_=-40000, to=self.y_max - 1)
         self.ylim_max_slider.configure(from_=self.y_min, to=40000)
         self.xlim_min_slider.set(self.x_min)
         self.xlim_max_slider.set(self.x_max)
@@ -493,6 +572,7 @@ class data_GUI:
         self.ax.set_xlabel(f'Frequency (Hz)' if self.plot_frequency.get() else f'Frequency Bin Index')
         self.ax.set_xlim(self.x_min, self.x_max)
         self.ax.set_ylim(self.y_min, self.y_max)
+        self.ax2.set_ylim(self.y2_min, self.y2_max)
 
         # update plot
         self.update_plot()
@@ -503,13 +583,13 @@ class data_GUI:
 
     def update_aggregate_size(self):
         # get value
-        self.aggregate_size = self.aggregate_size_entry.get()
+        self.aggregate_size = int(self.aggregate_size_entry.get())
 
     def update_plot(self):
         self.ax.relim()
         self.ax.autoscale_view()
         self.root.update_idletasks()
-        time.sleep(0.01)
+        # time.sleep(0.01)
         self.canvas.draw()
 
     def receive_data(self):
@@ -519,8 +599,9 @@ class data_GUI:
         global fsample_ADC
         global transmit_length
 
+        time.sleep(0.2)
         print(f'Start to receive ...')
-        while not self.quit_flag:
+        while self.window_show:
             if self.count == 10500:
                 return
 
@@ -538,11 +619,12 @@ class data_GUI:
 
             tik = time.time()
 
-            if not reader or len(reader) != transmit_length:
-                if not self.quit_flag:
-                    # self.root.after(100, self.update_data())
-                    return
+            if not reader:
+                continue
 
+            if len(reader) != transmit_length:
+                continue
+            print('Received ', len(reader), 'quit_flag == ', self.quit_flag)
             result = np.frombuffer(reader, dtype=dt)
 
             # unpack
@@ -553,16 +635,20 @@ class data_GUI:
             self.aggregated_results_Q.append(Q_data)
 
             # If we have more than 5 inputs, remove the oldest one
-            if len(self.aggregated_results_I) > aggregate_size:
+            if len(self.aggregated_results_I) > self.aggregate_size:
                 self.aggregated_results_I.pop(0)
                 self.aggregated_results_Q.pop(0)
 
             Q_aggregated = average_arrays(self.aggregated_results_Q)
             I_aggregated = average_arrays(self.aggregated_results_I)
 
-            if aggregate:
+            if self.aggregate.get():
                 Q_data = Q_aggregated
                 I_data = I_aggregated
+
+            if not self.aggregate.get():
+                self.aggregated_results_Q.clear()
+                self.aggregated_results_I.clear()
 
             if scale_FS:
                 Q_data = Q_data / scale
@@ -578,12 +664,14 @@ class data_GUI:
             # Update value
             self.I_data.set_data(self.x_range_plot, I_data)
             self.Q_data.set_data(self.x_range_plot, Q_data)
-            self.Mag.set_data(self.x_range_plot, 20*np.log10(mag_array))
+            self.Mag.set_data(self.x_range_plot, 20 * np.log10(mag_array))
             self.Phase.set_data(self.x_range_plot, np.angle(complex_array))
 
             self.ax.set_xlabel(f'Frequency (Hz)' if self.plot_frequency.get() else f'Frequency Bin Index')
+            self.ax.set_title(f'{self.count}-th frame results I and Q')
             self.ax.set_xlim(self.x_min, self.x_max)
             self.ax.set_ylim(self.y_min, self.y_max)
+            self.ax2.set_ylim(self.y2_min, self.y2_max)
 
             self.update_plot()
 
@@ -595,8 +683,8 @@ class data_GUI:
     # for vio param setting
     def run_vio(self):
         global bit_index
-        global aggregate
-        global aggregate_size
+        # global aggregate
+        # global aggregate_size
         global plot_individual_bits
         time.sleep(1.0)
 
@@ -613,7 +701,7 @@ class data_GUI:
             task = task.split()
             conv_factor = 1
             unit = ''
-            if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q','bits','unit','aggregate'])) or len(task) == 2:
+            if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q', 'bits'])) or len(task) == 2:
                 if task[0] == 'reset':
                     if len(task) == 2:
                         if task[1] == 'all':
@@ -690,8 +778,9 @@ class data_GUI:
             elif len(task) == 1 or len(task) == 5:
                 if task[0] == 'sweep' or task[0] == 'sweep_m':
                     if len(task) == 1:
-                        params = input('>> Enter <tx/vm_freq/phase/mag> <start value> <step size> <number of steps>\r\n '
-                                       'for example: tx_freq 1 1 100\r\n')
+                        params = input(
+                            '>> Enter <tx/vm_freq/phase/mag> <start value> <step size> <number of steps>\r\n '
+                            'for example: tx_freq 1 1 100\r\n')
                         params = params.split()
                     else:
                         params = task[1:5]
@@ -750,6 +839,7 @@ class data_GUI:
 
                 elif task[0] == 'q':
                     self.quit_flag = True
+                    self.window_show = False
                 elif task[0] == 'bits':
                     plot_individual_bits = not plot_individual_bits
                     print(f'Plotting the summed waveform' if not plot_individual_bits else f'Plotting bit {bit_index}')
@@ -768,14 +858,15 @@ class data_GUI:
                 #     display_freq = not display_freq
                 #     self.x_min =
                 #     print(f'Plot x-axis is bin-index' if not display_freq else f'Plot x-axis is frequency (Hz).')
-                elif task[0] == 'aggregate':
-                    aggregate = not aggregate
-                    print(f'Plotting raw input from FPGA' if not aggregate else f'Plotting post-aggregate results.')
+                # elif task[0] == 'aggregate':
+                #     self.aggregate = not self.aggregate
+                #     print(f'Plotting raw input from FPGA' if not aggregate else f'Plotting post-aggregate results.')
 
             else:
                 print(highlight_msg(">> Error: usage:VAR_NAME VAL, or VAR_NAME reset"))
 
-        print(">>Done vio")
+        print(">> Exiting vio thread.")
+        return
 
     # prepare data container and empty plot
     def fpga_stream_old(self):
@@ -786,7 +877,6 @@ class data_GUI:
         global aggregate
         global aggregate_size
         global plot_individual_bits
-
 
         x_range = range(0, plot_length, decimation)
         if plot_on:
@@ -814,25 +904,24 @@ class data_GUI:
 
             fig.suptitle('Received Data from FPGA with %s output' % ('normalized' if scale_FS else 'un-normalized'))
             fig.tight_layout()
-            plt.pause(0.0001) # this line will force plotting all pending plots
-
+            plt.pause(0.0001)  # this line will force plotting all pending plots
 
         count = 0
         print("starts receiving...")
         tok = time.time()
 
-        line_real, = ax[0].plot(x_range_plot, np.linspace(0,0,len(x_range)), label='FFT_out_real')
-        line_imag, = ax[0].plot(x_range_plot, np.linspace(0,0,len(x_range)), label='FFT_out_imag')
+        line_real, = ax[0].plot(x_range_plot, np.linspace(0, 0, len(x_range)), label='FFT_out_real')
+        line_imag, = ax[0].plot(x_range_plot, np.linspace(0, 0, len(x_range)), label='FFT_out_imag')
 
-        line_dB, = ax[1].plot(x_range_plot, np.linspace(0,0,len(x_range)))  # prevent zero
+        line_dB, = ax[1].plot(x_range_plot, np.linspace(0, 0, len(x_range)))  # prevent zero
         peakpt_dB = ax[1].scatter([], [], color='r', marker='o')
 
-        line_phase, = ax[2].plot(x_range_plot, np.linspace(0,0,len(x_range)))
+        line_phase, = ax[2].plot(x_range_plot, np.linspace(0, 0, len(x_range)))
         peakpt_phase = ax[2].scatter([], [], color='r', marker='o')
 
         aggregated_results_I = []
         aggregated_results_Q = []
-        while self.quit_flag != 1:
+        while not self.quit_flag:
 
             if count == 10500:
                 break
@@ -888,13 +977,18 @@ class data_GUI:
             # update the plot
             if plot_on:
                 if not plot_individual_bits:
-                    line_real.set_data(x_range_plot, I_data[0: plot_length: decimation] if not multiply_factor > 1 else multiply_factor * np.real(complex_array[0: plot_length: decimation]))
-                    line_imag.set_data(x_range_plot, Q_data[0: plot_length: decimation] if not multiply_factor > 1 else multiply_factor * np.imag(complex_array[0: plot_length: decimation]))
+                    line_real.set_data(x_range_plot, I_data[
+                                                     0: plot_length: decimation] if not multiply_factor > 1 else multiply_factor * np.real(
+                        complex_array[0: plot_length: decimation]))
+                    line_imag.set_data(x_range_plot, Q_data[
+                                                     0: plot_length: decimation] if not multiply_factor > 1 else multiply_factor * np.imag(
+                        complex_array[0: plot_length: decimation]))
                 else:
                     line_real.set_data(x_range_plot, scale * ((I_data[0: plot_length: decimation] >> bit_index) & 1))
                     line_imag.set_data(x_range_plot, scale * ((Q_data[0: plot_length: decimation] >> bit_index) & 1))
 
-                ax[0].set_title('%d-th frame results I and Q' % count if not plot_individual_bits else f'{bit_index}-th bit from I and Q')
+                ax[0].set_title(
+                    '%d-th frame results I and Q' % count if not plot_individual_bits else f'{bit_index}-th bit from I and Q')
                 ax[0].legend(loc='lower center')
                 ax[0].set_xlim(0, x_max)
                 if scale_FS:
@@ -905,20 +999,20 @@ class data_GUI:
                 if not plot_individual_bits:
                     line_dB.set_data(x_range_plot, 20 * np.log10(mag_array))
                 else:
-                    line_dB.set_data(x_range_plot, np.linspace(0,0,len(x_range)))
+                    line_dB.set_data(x_range_plot, np.linspace(0, 0, len(x_range)))
                 peakpt_dB.set_offsets(np.c_[peak_index, peak_mag])
 
                 ax[1].set_title('%d-th frame results Mag (dB), peak bin mag is %.2f' % (count, peak_mag))
                 ax[1].set_xlim(0, x_max)
                 if scale_FS:
-                    ax[1].set_ylim(-10 - 20 * np.log10(scale), 90 - 20 * np.log10(scale))
+                    ax[1].set_ylim(-10 - 20 * np.log10(scale), 100 - 20 * np.log10(scale))
                 else:
-                    ax[1].set_ylim(-10, 90)
+                    ax[1].set_ylim(-10, 100)
 
                 if not plot_individual_bits:
                     line_phase.set_data(x_range_plot, np.angle(complex_array) * 180 / np.pi)
                 else:
-                    line_phase.set_data(x_range_plot, np.linspace(0,0,len(x_range)))
+                    line_phase.set_data(x_range_plot, np.linspace(0, 0, len(x_range)))
 
                 peakpt_phase.set_offsets(np.c_[peak_index, peak_phase])
 
@@ -934,9 +1028,9 @@ class data_GUI:
                 plt.pause(0.001)
                 fig.tight_layout()
 
-
             if print_stream_msg:
-                print(">> Received %.4d-th frame, peak index is %d, time elapsed is %.4f" % (count, peak_index, tik - tok))
+                print(">> Received %.4d-th frame, peak index is %d, time elapsed is %.4f" % (
+                count, peak_index, tik - tok))
             tok = tik
             # if count < 100:
             #     I_received_matrix.append(I_data)
@@ -946,7 +1040,6 @@ class data_GUI:
         # print(I_received_matrix)
         # print(Q_received_matrix)
         print(">>Done plot")
-
 
 
 # Main thread
@@ -965,4 +1058,6 @@ if __name__ == "__main__":
 
     # Wait for thread to finish
     # vio_thread.join()
+    print('Exiting main...')
+    root.destroy()
     exit()
