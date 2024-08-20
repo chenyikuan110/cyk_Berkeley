@@ -31,7 +31,7 @@ class vio_param:
 if os.name == 'nt':
     ser = serial.Serial()
     ser.baudrate = 115200
-    ser.port = 'COM9'  # CHANGE THIS COM PORT 7 is emulation, 9 is FPGA
+    ser.port = 'COM9'  # CHANGE THIS COM PORT 7 is emulation, 9 is FPGA here
     ser.timeout = 2
     ser.open()
 else:
