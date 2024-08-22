@@ -14,14 +14,15 @@ import itertools
 my_dir = ""
 
 # Load DUT data
-my_subdir = "20240812_DAC/"
+my_subdir = "20240821_SENDAR_BW_Sweep_3"
 # csv_format = 'FMCW*.csv'
 csv_format = 'Trace*'
+sort_regex = r'cm_(\d+(?:\.\d+)?)'
 normalize = False
 # plot_name = 'Received Power\n Normalized to Leakage [dB]'
 plot_name = 'Measured Power [dBm]'
 font_downscale = 2
-legend_loc = 'upper center'
+legend_loc = 'lower center'
 
 plt.rcParams['axes.unicode_minus'] = False
 # Initialization
@@ -30,7 +31,7 @@ d = 0.32
 freq_min = 120
 freq_max = 150
 
-line_styles = ['-','--','-']
+line_styles = ['-','-','-']
 line_cycle = itertools.cycle(line_styles)
 
 def read_data_as_matrix(file_path):
@@ -58,8 +59,16 @@ def split_string(s, delimiters):
     return re.split(pattern, s)
 
 
+def extract_second_number(filename):
+    # Find all sequences of digits in the filename, including those with decimal points
+    match = re.findall(sort_regex, filename)
+    return float(match[0]) #if len(match) > 1 else 0
+
+# Sort the list using the extracted numbers
+
 
 csv_files = glob.glob(os.path.join(my_dir, my_subdir, csv_format))
+csv_files = sorted(csv_files, key=extract_second_number)
 
 # Plotting
 # plt.figure()
@@ -73,10 +82,13 @@ curr_argmax_imrr = 0
 i = 0
 for i,file in enumerate(list(csv_files)):
 
+    # if i % 3 == 1:
+    #     continue
+
     print(os.path.basename(file))
 
     file_name_parse = os.path.basename(file)
-    file_name_parse = split_string(file_name_parse,['_','.'])
+    file_name_parse = split_string(file_name_parse,['_','.c'])
 
     # file = f'{my_dir}{my_subdir}RX_RF_20240724_1739.csv'
     # tmp = pd.read_csv(file).values
@@ -125,7 +137,7 @@ ax1.tick_params(labelsize = 28*2)
 ax1.set_xlabel('Freq [Hz]',fontsize=20*2)
 ax1.set_ylabel(plot_name,fontsize=20*2)
 ax1.grid(True,linestyle='--', dashes=(5, 10))
-ax1.legend(loc=legend_loc, fontsize=14*2*4/(i+1)/font_downscale)
+ax1.legend(loc=legend_loc, fontsize=14*2*4/(i+1)/font_downscale, facecolor='white', edgecolor='black')
 
 print("curr max is ",curr_max)
 xaxis_range = [int(freq_rec_pw[0]), int(freq_rec_pw[-1])]

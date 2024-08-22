@@ -77,12 +77,12 @@ fsample_ADC = 10E6
 
 # default params
 start_up_params = []
-start_up_params.append(vio_param('TX_DAC_frequency_word', 4096, 0, 3, fund_tone, 'Hz'))
+start_up_params.append(vio_param('TX_DAC_frequency_word', 16384, 0, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('TX_DAC_initial_phase', 0, 3, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_IQ_phase_diff', 32767, 6, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_Mult_enable', 1, 9, 1))
 start_up_params.append(vio_param('TX_Mult_gain', 2048, 10, 3))
-start_up_params.append(vio_param('VM_DAC_frequency_word', 4096, 13, 3, fund_tone, 'Hz'))
+start_up_params.append(vio_param('VM_DAC_frequency_word', 16384, 13, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('VM_DAC_initial_phase', 0, 16, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_IQ_phase_diff', 32767, 19, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_Mult_enable', 1, 22, 1))
@@ -200,6 +200,19 @@ def reset_all():
         cmds.append(params.cmd)
     return cmds, np.concatenate(addr), np.concatenate(val)
 
+# for re-programming
+def get_all():
+    global start_up_params
+    addr = []
+    val = []
+    cmds = []
+    # for cmd_keys, cmd_vals in dict_cmd.items():
+    for params in start_up_params:
+        addr_, ignore, val_ = parse_cmd(params.cmd, params.curr_val)
+        addr.append(addr_)
+        val.append(val_)
+        cmds.append(params.cmd)
+    return cmds, np.concatenate(addr), np.concatenate(val)
 
 # send msg
 def send_to_dut(port, addr, val):
@@ -777,10 +790,16 @@ class data_GUI:
             conv_factor = 1
             unit = ''
             if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q', 'bits'])) or len(task) == 2:
-                if task[0] == 'reset':
+                if task[0] == 'reset' or task[0] == 'write':
                     if len(task) == 2:
-                        if task[1] == 'all':
+                        if  task[0] == 'reset' and task[1] == 'all':
                             cmd, addr, val = reset_all()
+                            curr_val = np.array([params.default_val for params in start_up_params])
+                            conv_factor = np.array([params.conv_factor for params in start_up_params])
+                            unit = np.array([params.unit for params in start_up_params])
+                            time.sleep(0.1)
+                        elif task[0] == 'write':
+                            cmd, addr, val = get_all()
                             curr_val = np.array([params.default_val for params in start_up_params])
                             conv_factor = np.array([params.conv_factor for params in start_up_params])
                             unit = np.array([params.unit for params in start_up_params])
@@ -915,6 +934,7 @@ class data_GUI:
                 elif task[0] == 'q':
                     self.quit_flag = True
                     self.window_show = False
+
                 elif task[0] == 'bits':
                     plot_individual_bits = not plot_individual_bits
                     print(f'Plotting the summed waveform' if not plot_individual_bits else f'Plotting bit {bit_index}')
