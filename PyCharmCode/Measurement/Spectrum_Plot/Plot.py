@@ -14,10 +14,10 @@ import itertools
 my_dir = ""
 
 # Load DUT data
-my_subdir = "20240821_SENDAR_BW_Sweep_3"
+my_subdir = "20240822_SENDAR_Cancel"
 # csv_format = 'FMCW*.csv'
 csv_format = 'Trace*'
-sort_regex = r'cm_(\d+(?:\.\d+)?)'
+sort_regex = r'_(\d+(?:\.\d+)?)'
 normalize = False
 # plot_name = 'Received Power\n Normalized to Leakage [dB]'
 plot_name = 'Measured Power [dBm]'
@@ -68,7 +68,7 @@ def extract_second_number(filename):
 
 
 csv_files = glob.glob(os.path.join(my_dir, my_subdir, csv_format))
-csv_files = sorted(csv_files, key=extract_second_number)
+# csv_files = sorted(csv_files, key=extract_second_number)
 
 # Plotting
 # plt.figure()
@@ -82,8 +82,8 @@ curr_argmax_imrr = 0
 i = 0
 for i,file in enumerate(list(csv_files)):
 
-    # if i % 3 == 1:
-    #     continue
+    if i  == len(csv_files)-1:
+        continue
 
     print(os.path.basename(file))
 

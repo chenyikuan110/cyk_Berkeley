@@ -75,6 +75,8 @@ fund_tone = fsample_DAC / 4 / LUT_size
 
 fsample_ADC = 10E6
 
+ADC_clip_threshold = 65535
+
 # default params
 start_up_params = []
 start_up_params.append(vio_param('TX_DAC_frequency_word', 16384, 0, 3, fund_tone, 'Hz'))
@@ -87,6 +89,7 @@ start_up_params.append(vio_param('VM_DAC_initial_phase', 0, 16, 3, 1 / (LUT_size
 start_up_params.append(vio_param('VM_IQ_phase_diff', 32767, 19, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_Mult_enable', 1, 22, 1))
 start_up_params.append(vio_param('VM_Mult_gain', 400, 23, 3))
+start_up_params.append(vio_param('ADC_clip_threshold', 65535, 26, 2))
 
 # dict_cmd = {
 #     'TX_DAC_frequency_word': [0, 2, 6]
@@ -208,7 +211,7 @@ def get_all():
     cmds = []
     # for cmd_keys, cmd_vals in dict_cmd.items():
     for params in start_up_params:
-        addr_, ignore, val_ = parse_cmd(params.cmd, params.curr_val)
+        addr_, val_ , ignore_ = parse_cmd(params.cmd, params.curr_val)
         addr.append(addr_)
         val.append(val_)
         cmds.append(params.cmd)
@@ -232,6 +235,7 @@ class data_GUI:
     def __init__(self, root):
 
         global multiply_factor
+        global ADC_clip_threshold
         global display_freq
         global aggregate
         global aggregate_size
@@ -250,6 +254,7 @@ class data_GUI:
         self.plot_frequency = tk.BooleanVar(value=display_freq)
         self.aggregate = tk.BooleanVar(value=aggregate)
         self.aggregate_size = aggregate_size
+        self.ADC_clip_threshold = ADC_clip_threshold
 
         # Internalize
         self.root = root
@@ -378,11 +383,21 @@ class data_GUI:
         # Scale Toggle (normalization)
         self.aggregate_button = ttk.Checkbutton(self.Option_Frame, text="Scale FS", variable=self.scale_FS,
                                                 command=self.toggle_scale_FS)
-        self.aggregate_button.grid(row=0, column=3, sticky='w', padx=10, pady=5)
+        self.aggregate_button.grid(row=0, column=4, sticky='w', padx=10, pady=5)
+
+        # Threshold
+        self.ADC_clip_threshold_frame = tk.Frame(self.Option_Frame)
+        self.ADC_clip_threshold_frame.grid(row=1, column=0, padx=5, sticky='w')
+        self.ADC_clip_threshold_label = tk.Label(self.ADC_clip_threshold_frame, text="ADC clip threshold")
+        self.ADC_clip_threshold_label.grid(row=0, column=0, padx=5, sticky='w')
+        self.ADC_clip_threshold_entry = tk.Entry(self.ADC_clip_threshold_frame)
+        self.ADC_clip_threshold_entry.insert(0, f'{self.ADC_clip_threshold}')
+        self.ADC_clip_threshold_entry.grid(row=0, column=1, padx=5, sticky='w')
+        self.ADC_clip_threshold_entry.bind("<FocusOut>", lambda e: self.update_ADC_clip_threshold())
 
         # X
         self.xlim_frame = tk.Frame(self.Option_Frame)
-        self.xlim_frame.grid(row=1, column=0, sticky='nsew', pady=5)
+        self.xlim_frame.grid(row=2, column=0, sticky='nsew', pady=5)
         # Create sliders and textboxes for x-axis limits
         self.xlim_label = tk.Label(self.xlim_frame, text="X Limits (min,max):")
         self.xlim_label.grid(row=0, column=0, padx=5)
@@ -404,7 +419,7 @@ class data_GUI:
 
         # Y
         self.ylim_frame = tk.Frame(self.Option_Frame)
-        self.ylim_frame.grid(row=2, column=0, sticky='nsew', pady=5)
+        self.ylim_frame.grid(row=3, column=0, sticky='nsew', pady=5)
         # Create sliders and textboxes for x-axis limits
         self.ylim_label = tk.Label(self.ylim_frame, text="Y Limits (min,max):")
         self.ylim_label.grid(row=0, column=0, padx=5)
@@ -428,7 +443,7 @@ class data_GUI:
 
         # Y2
         self.ylim2_frame = tk.Frame(self.Option_Frame)
-        self.ylim2_frame.grid(row=3, column=0, sticky='nsew', pady=5)
+        self.ylim2_frame.grid(row=4, column=0, sticky='nsew', pady=5)
         # Create sliders and textboxes for x-axis limits
         self.ylim2_label = tk.Label(self.ylim2_frame, text="Y Limits (min,max):")
         self.ylim2_label.grid(row=0, column=0, padx=5)
@@ -607,8 +622,12 @@ class data_GUI:
         # print('after',self.x_min, self.x_max)
 
         # update sliders
-        self.xlim_min_slider.configure(from_=0, to=self.x_max - 1)
-        self.xlim_max_slider.configure(from_=self.x_min, to=self.x_range_max)
+        self.xlim_min_slider.configure(resolution=x_factor if self.plot_frequency.get() else 1,
+                                       from_=0,
+                                       to=self.x_max - (x_factor if self.plot_frequency.get() else 1))
+        self.xlim_max_slider.configure(resolution=x_factor if self.plot_frequency.get() else 1,
+                                       from_=self.x_min + (x_factor if self.plot_frequency.get() else 1),
+                                       to=self.x_range_max)
 
         # self.ylim_min_slider.configure(from_=-40000 if not self.scale_FS else -40000/self.scale,
         #                                to=self.y_max - (1 if not self.scale_FS.get() else 1/self.scale))
@@ -656,6 +675,19 @@ class data_GUI:
     def update_aggregate_size(self):
         # get value
         self.aggregate_size = int(self.aggregate_size_entry.get())
+
+    def update_ADC_clip_threshold(self):
+        # get value
+        self.ADC_clip_threshold = int(self.ADC_clip_threshold_entry.get())
+
+        # write vio
+        curr_param = next((obj for obj in start_up_params if obj.cmd == 'ADC_clip_threshold'), None)
+        addr, val, ignore = parse_cmd('ADC_clip_threshold', self.ADC_clip_threshold)
+        send_to_dut(ser, addr, val)
+        time.sleep(0.2)
+
+        print(f'Updated ADC clip threshold to {self.ADC_clip_threshold}')
+
 
     def update_plot(self):
         self.ax.relim()
@@ -735,16 +767,18 @@ class data_GUI:
             peak_x_upper_bound = self.x_max
             if self.plot_frequency.get():
                 peak_x_lower_bound = int(np.floor(peak_x_lower_bound / x_factor))
-                peak_x_upper_bound = int(np.floor(peak_x_upper_bound / x_factor))
+                peak_x_upper_bound = int(np.ceil(peak_x_upper_bound / x_factor))
 
             peak_index = np.argmax(mag_array[peak_x_lower_bound:peak_x_upper_bound])
-            peak_value = np.max(mag_array[peak_x_lower_bound:peak_x_upper_bound])
+            # peak_value = np.max(mag_array[peak_x_lower_bound:peak_x_upper_bound])
+            peak_value = mag_array[peak_index+peak_x_lower_bound]
+
             peak_x = peak_index
             if self.plot_frequency.get():
                 peak_x = peak_index * x_factor
 
             peak_mag = 20 * np.log10(10 ** (-60) + peak_value)
-            peak_phase = np.angle(complex_array[peak_index]) * 180 / np.pi
+            peak_phase = np.angle(complex_array[peak_index+peak_x_lower_bound]) * 180 / np.pi
 
             # Update value
             self.I_data.set_data(self.x_range_plot, I_data)
@@ -755,8 +789,8 @@ class data_GUI:
 
             self.ax.set_xlabel(f'Frequency (Hz)' if self.plot_frequency.get() else f'Frequency Bin Index')
             self.ax.set_title(f'{self.count}-th frame results I and Q' if not self.var_Peak.get()
-        else f'{self.count}-th frame results I and Q, peak at {(peak_x+self.x_min):.5f} '
-                                   f'with Mag {peak_mag:.2f}')
+        else f'{self.count}-th frame results I and Q, peak at {(peak_x+self.x_min):.3f} '
+                                   f'with Mag {peak_mag:.2f}, Phase {peak_phase:.2f}')
             self.ax.set_xlim(self.x_min, self.x_max)
             self.ax.set_ylim(self.y_min, self.y_max)
             self.ax2.set_ylim(self.y2_min, self.y2_max)
