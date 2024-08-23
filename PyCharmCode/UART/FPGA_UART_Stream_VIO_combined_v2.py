@@ -3,6 +3,7 @@ import os
 import serial
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle
 import time
 import threading
 import tkinter as tk
@@ -33,10 +34,11 @@ class vio_param:
 
 
 # Windows
+emulation_on = False
 if os.name == 'nt':
     ser = serial.Serial()
     ser.baudrate = 115200
-    ser.port = 'COM9'  # CHANGE THIS COM PORT 7 is emulation, 9 is FPGA here
+    ser.port = 'COM7' if emulation_on else 'COM9'  # CHANGE THIS COM PORT 7 is emulation, 9 is FPGA here
     ser.timeout = 2
     ser.open()
 else:
@@ -44,7 +46,7 @@ else:
     ser.baudrate = 115200  # 921600
 
 # emulation enable
-emulation_on = False
+
 emulation_fft = False
 multiply_factor = 1
 plot_individual_bits = False
@@ -77,6 +79,8 @@ fsample_ADC = 10E6
 
 ADC_clip_threshold = 65535
 
+Downsample_factor = 8
+
 # default params
 start_up_params = []
 start_up_params.append(vio_param('TX_DAC_frequency_word', 16384, 0, 3, fund_tone, 'Hz'))
@@ -90,6 +94,7 @@ start_up_params.append(vio_param('VM_IQ_phase_diff', 32767, 19, 3, 1 / (LUT_size
 start_up_params.append(vio_param('VM_Mult_enable', 1, 22, 1))
 start_up_params.append(vio_param('VM_Mult_gain', 400, 23, 3))
 start_up_params.append(vio_param('ADC_clip_threshold', 65535, 26, 2))
+start_up_params.append(vio_param('Downsample_factor', 8, 28, 1))
 
 # dict_cmd = {
 #     'TX_DAC_frequency_word': [0, 2, 6]
@@ -175,7 +180,7 @@ def int_to_bytes(num, width):
 
 
 # for command to addr conversion
-def parse_cmd(cmd, val):
+def parse_cmd(cmd, val, rootGUI=None):
     global start_up_params
     curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
 
@@ -185,19 +190,33 @@ def parse_cmd(cmd, val):
     address = [n for n in reversed(range(start_addr, start_addr + width))]
     curr_param.curr_val = val
     # print(cmd, val, address, int_to_bytes(val, width))
+    # print(rootGUI)
+    if rootGUI:
+        # update plot
+        if curr_param.cmd == 'TX_DAC_initial_phase':
+            actual_val = val / (LUT_size*2 / np.pi)
+            # print(np.cos(actual_val),np.sin(actual_val))
+            rootGUI.TX_phasemag.set_offsets(np.c_[np.cos(actual_val),np.sin(actual_val)])
+            rootGUI.canvas_IQ.draw()
+        elif curr_param.cmd == 'VM_DAC_initial_phase':
+            actual_val = val / (LUT_size*2 / np.pi)
+            # print(np.cos(actual_val),np.sin(actual_val))
+            rootGUI.VM_phasemag.set_offsets(np.c_[np.cos(actual_val),np.sin(actual_val)])
+            rootGUI.canvas_IQ.draw()
+
 
     return address, int_to_bytes(val, width), int_to_bytes(default_val, width)
 
 
 # reset value
-def reset_all():
+def reset_all(rootGUI=None):
     global start_up_params
     addr = []
     val = []
     cmds = []
     # for cmd_keys, cmd_vals in dict_cmd.items():
     for params in start_up_params:
-        addr_, ignore, val_ = parse_cmd(params.cmd, params.default_val)
+        addr_, ignore, val_ = parse_cmd(params.cmd, params.default_val,rootGUI)
         addr.append(addr_)
         val.append(val_)
         cmds.append(params.cmd)
@@ -236,6 +255,7 @@ class data_GUI:
 
         global multiply_factor
         global ADC_clip_threshold
+        global Downsample_factor
         global display_freq
         global aggregate
         global aggregate_size
@@ -255,6 +275,7 @@ class data_GUI:
         self.aggregate = tk.BooleanVar(value=aggregate)
         self.aggregate_size = aggregate_size
         self.ADC_clip_threshold = ADC_clip_threshold
+        self.Downsample_factor = Downsample_factor
 
         # Internalize
         self.root = root
@@ -271,7 +292,7 @@ class data_GUI:
         self.Plot_Frame = ttk.Frame(self.root)
         self.Plot_Frame.grid(row=2, column=0, sticky='news')
 
-        # Create a frame for sliders
+        # Create a frame for configs
         self.Option_Frame = ttk.Frame(self.root)
         self.Option_Frame.grid(row=3, column=0, sticky='news')
 
@@ -308,8 +329,8 @@ class data_GUI:
         self.x_min = 0
         self.y_max = 40000 if not self.scale_FS.get() else 40000/self.scale
         self.y_min = -40000 if not self.scale_FS.get() else -40000/self.scale
-        self.y3_min = 0
-        self.y3_max = 360
+        self.y3_min = -20
+        self.y3_max = 380
 
         self.aggregated_results_I = []
         self.aggregated_results_Q = []
@@ -317,19 +338,21 @@ class data_GUI:
         # Plot initial curves
         # Create a figure and axis for plotting
         self.fig, self.ax = plt.subplots()
+        self.ax.patch.set_facecolor('black')
         self.I_data, = self.ax.plot(self.x_range_plot, np.linspace(0, 0, len(self.x_range_plot)), label='I')
         self.Q_data, = self.ax.plot(self.x_range_plot, np.linspace(0, 0, len(self.x_range_plot)), label='Q')
+        self.ax.grid(True, which='both', linestyle='--', linewidth=0.5, color='gray')
 
 
         self.ax2 = self.ax.twinx()
-        self.Mag, = self.ax2.plot(self.x_range_plot, np.linspace(0, 0, len(self.x_range_plot)), color='green',
+        self.Mag, = self.ax2.plot(self.x_range_plot, np.linspace(0, 0, len(self.x_range_plot)), color='yellow',
                                   label='Magnitude dB')
 
         self.y2_min = -10 - 20 * np.log10(self.scale)
         self.y2_max = 100
         self.ax.set_ylim(self.y_min, self.y_max)
         self.ax2.set_ylim(self.y2_min, self.y2_max)
-        self.ax2.tick_params(axis='y', labelcolor='tab:green')
+        self.ax2.tick_params(axis='y', labelcolor='#c7a118')
 
         self.ax3 = self.ax.twinx()
         self.ax3.spines['right'].set_position(('outward', 30))
@@ -344,11 +367,14 @@ class data_GUI:
         # Add legend
         handles, labels = self.ax.get_legend_handles_labels()
         handles2, labels2 = self.ax2.get_legend_handles_labels()
+        handles3, labels3 = self.ax3.get_legend_handles_labels()
 
         # Add handles and labels from the second axis to the first
         handles += handles2
         labels += labels2
-        self.ax.legend(handles, labels, loc='lower center')
+        handles += handles3
+        labels += labels3
+        self.ax.legend(handles, labels, loc='lower center',facecolor=(1,1,1,0.5))
         # self.ax2.legend()
 
         # Add to Canvas
@@ -365,39 +391,62 @@ class data_GUI:
         self.Plot_Frame.grid_columnconfigure(0, weight=1)
 
         # Configure the Option Frame
+        self.Option_subframe = tk.Frame(self.Option_Frame)
+        self.Option_subframe.grid(row=0, column=0, padx=5, sticky='w')
+
+        self.Slider_subframe = tk.Frame(self.Option_Frame)
+        self.Slider_subframe.grid(row=1, column=0, padx=5, sticky='w')
+
+        self.IQ_subframe = tk.Frame(self.Option_Frame)
+        self.IQ_subframe.grid(row=1, column=1, padx=5, sticky='news')
+
         # Unit
-        self.freq_plot_button = ttk.Checkbutton(self.Option_Frame, text="Plot Frequency (Hz)",
+        self.freq_plot_button = ttk.Checkbutton(self.Option_subframe, text="Plot Frequency (Hz)",
                                                 variable=self.plot_frequency,
                                                 command=self.toggle_unit)
         self.freq_plot_button.grid(row=0, column=0, sticky='w', padx=10, pady=5)
 
         # Aggregate (More Averaging)
-        self.aggregate_button = ttk.Checkbutton(self.Option_Frame, text="Aggregate", variable=self.aggregate,
+        self.aggregate_button = ttk.Checkbutton(self.Option_subframe, text="Aggregate", variable=self.aggregate,
                                                 command=self.toggle_aggregate)
-        self.aggregate_button.grid(row=0, column=1, sticky='w', padx=10, pady=5)
-        self.aggregate_size_entry = tk.Entry(self.Option_Frame)
+        self.aggregate_button.grid(row=0, column=1, sticky='e', padx=10, pady=5)
+        self.aggregate_size_entry = tk.Entry(self.Option_subframe)
         self.aggregate_size_entry.insert(0, f'{self.aggregate_size}')
         self.aggregate_size_entry.grid(row=0, column=2, padx=5)
         self.aggregate_size_entry.bind("<FocusOut>", lambda e: self.update_aggregate_size())
 
-        # Scale Toggle (normalization)
-        self.aggregate_button = ttk.Checkbutton(self.Option_Frame, text="Scale FS", variable=self.scale_FS,
-                                                command=self.toggle_scale_FS)
-        self.aggregate_button.grid(row=0, column=4, sticky='w', padx=10, pady=5)
-
         # Threshold
-        self.ADC_clip_threshold_frame = tk.Frame(self.Option_Frame)
-        self.ADC_clip_threshold_frame.grid(row=1, column=0, padx=5, sticky='w')
-        self.ADC_clip_threshold_label = tk.Label(self.ADC_clip_threshold_frame, text="ADC clip threshold")
-        self.ADC_clip_threshold_label.grid(row=0, column=0, padx=5, sticky='w')
-        self.ADC_clip_threshold_entry = tk.Entry(self.ADC_clip_threshold_frame)
+        self.ADC_clip_threshold_label = tk.Label(self.Option_subframe, text="ADC clip threshold")
+        self.ADC_clip_threshold_label.grid(row=1, column=0, padx=5, sticky='w')
+        self.ADC_clip_threshold_entry = tk.Entry(self.Option_subframe)
         self.ADC_clip_threshold_entry.insert(0, f'{self.ADC_clip_threshold}')
-        self.ADC_clip_threshold_entry.grid(row=0, column=1, padx=5, sticky='w')
-        self.ADC_clip_threshold_entry.bind("<FocusOut>", lambda e: self.update_ADC_clip_threshold())
+        self.ADC_clip_threshold_entry.grid(row=1, column=1, padx=5, sticky='w')
+        self.ADC_clip_threshold_button = ttk.Button(self.Option_subframe, text="Update Value", 
+                                                command=self.update_ADC_clip_threshold)
+        self.ADC_clip_threshold_button.grid(row=1, column=2, sticky='w', padx=10, pady=5)
 
+        # self.ADC_clip_threshold_entry.bind("<FocusOut>", lambda e: self.update_ADC_clip_threshold())
+
+        # Downsample_factor
+        self.Downsample_factor_label = tk.Label(self.Option_subframe, text="Downsample_factor")
+        self.Downsample_factor_label.grid(row=2, column=0, padx=5, sticky='w')
+        self.Downsample_factor_entry = tk.Entry(self.Option_subframe)
+        self.Downsample_factor_entry.insert(0, f'{self.Downsample_factor}')
+        self.Downsample_factor_entry.grid(row=2, column=1, padx=5, sticky='w')
+        self.Downsample_factor_button = ttk.Button(self.Option_subframe, text="Update Value", 
+                                                command=self.update_Downsample_factor)
+        self.Downsample_factor_button.grid(row=2, column=2, sticky='w', padx=10, pady=5)
+        # self.Downsample_factor_entry.bind("<FocusOut>", lambda e: self.update_Downsample_factor())
+
+        # Scale Toggle (normalization)
+        self.aggregate_button = ttk.Checkbutton(self.Option_subframe, text="Normalize Plot", variable=self.scale_FS,
+                                                command=self.toggle_scale_FS)
+        self.aggregate_button.grid(row=1, column=3, sticky='w', padx=10, pady=5)
+
+        # ----- Sliders ------
         # X
-        self.xlim_frame = tk.Frame(self.Option_Frame)
-        self.xlim_frame.grid(row=2, column=0, sticky='nsew', pady=5)
+        self.xlim_frame = tk.Frame(self.Slider_subframe)
+        self.xlim_frame.grid(row=0, column=0, sticky='nsew', pady=5)
         # Create sliders and textboxes for x-axis limits
         self.xlim_label = tk.Label(self.xlim_frame, text="X Limits (min,max):")
         self.xlim_label.grid(row=0, column=0, padx=5)
@@ -418,8 +467,8 @@ class data_GUI:
         self.xlim_max_slider.grid(row=0, column=3, padx=5)
 
         # Y
-        self.ylim_frame = tk.Frame(self.Option_Frame)
-        self.ylim_frame.grid(row=3, column=0, sticky='nsew', pady=5)
+        self.ylim_frame = tk.Frame(self.Slider_subframe)
+        self.ylim_frame.grid(row=1, column=0, sticky='nsew', pady=5)
         # Create sliders and textboxes for x-axis limits
         self.ylim_label = tk.Label(self.ylim_frame, text="Y Limits (min,max):")
         self.ylim_label.grid(row=0, column=0, padx=5)
@@ -442,8 +491,8 @@ class data_GUI:
         self.ylim_max_slider.configure(resolution=1 / self.scale if self.scale_FS.get() else 1)
 
         # Y2
-        self.ylim2_frame = tk.Frame(self.Option_Frame)
-        self.ylim2_frame.grid(row=4, column=0, sticky='nsew', pady=5)
+        self.ylim2_frame = tk.Frame(self.Slider_subframe)
+        self.ylim2_frame.grid(row=2, column=0, sticky='nsew', pady=5)
         # Create sliders and textboxes for x-axis limits
         self.ylim2_label = tk.Label(self.ylim2_frame, text="Y Limits (min,max):")
         self.ylim2_label.grid(row=0, column=0, padx=5)
@@ -467,6 +516,41 @@ class data_GUI:
         self.xlim_entry.bind("<FocusOut>", lambda e: self.update_limits_from_text())
         self.ylim_entry.bind("<FocusOut>", lambda e: self.update_limits_from_text())
         self.ylim2_entry.bind("<FocusOut>", lambda e: self.update_limits_from_text())
+
+        # ---- IQ-plot ----     
+        self.fig_IQ , self.ax_IQ = plt.subplots(figsize=(2.5,2.5))
+        self.fig_IQ.patch.set_facecolor((0, 1, 1, 0.05))
+        self.ax_IQ.patch.set_facecolor((0, 1, 1, 0.0))
+        self.unit_circle_IQ = Circle((0, 0), 1, color='blue', alpha=0.2, fill=False, linestyle='--', linewidth=1.5)
+        self.ax_IQ.add_patch(self.unit_circle_IQ)
+        self.TX_phasemag = self.ax_IQ.scatter(1,0, label='TX',marker='o')
+        self.VM_phasemag = self.ax_IQ.scatter(1,0, label='VM',marker='*')
+        self.ax_IQ.set_xlim(-1.1, 1.1)
+        self.ax_IQ.set_ylim(-1.1, 1.1)
+        self.ax_IQ.set_xlabel('I',color='red',backgroundcolor=(1,0,0,0.1))
+        self.ax_IQ.set_ylabel('Q',color='red',backgroundcolor=(0,0,1,0.1))
+        self.ax_IQ.xaxis.set_label_coords(0.5,0.1)
+        self.ax_IQ.yaxis.set_label_coords(0.1,0.5)
+        self.ax_IQ.set_aspect('equal')
+        self.ax_IQ.legend(loc='lower center',bbox_to_anchor=(0.5, -0.35), ncol=2, frameon=True, fontsize='small',facecolor=(0,0,1,0.1),framealpha=0.1)
+        self.canvas_IQ = FigureCanvasTkAgg(self.fig_IQ, master=self.IQ_subframe)
+        self.canvas_IQ_widget = self.canvas_IQ.get_tk_widget()
+        self.canvas_IQ_widget.grid(row=0, column=0, padx=0, pady=3)
+        self.ax_IQ.grid(True, which='both', linestyle='--', linewidth=0.5, color='gray')
+        
+        # self.fig_IQ.set_size
+        # self.fig_IQ.set_size_inches(1,1, forward=True)
+        # self.canvas_IQ_widget.place(relx=0.5, rely=0.5, anchor='center')
+        self.fig_IQ.tight_layout(pad=1.0)
+        self.fig_IQ.subplots_adjust(left=0.2, right=0.9, top=0.9, bottom=0.2)
+        self.canvas_IQ.draw()
+        self.IQ_subframe.update_idletasks()
+        self.IQ_subframe.grid_propagate(False) 
+
+        # Configure bottom frame grid layout
+        # self.IQ_subframe.grid_rowconfigure(0, weight=0)
+        # self.IQ_subframe.grid_columnconfigure(0, weight=0)
+
 
         # Configure root grid layout
         self.root.grid_rowconfigure(0, weight=0)
@@ -592,10 +676,13 @@ class data_GUI:
         # Get the legend handles and labels
         handles, labels = self.ax.get_legend_handles_labels()
         handles2, labels2 = self.ax2.get_legend_handles_labels()
+        handles3, labels3 = self.ax3.get_legend_handles_labels()
 
         # Add handles and labels from the second axis to the first
         handles += handles2
+        handles += handles3
         labels += labels2
+        labels += labels3
 
         new_handles = []
         new_labels = []
@@ -604,7 +691,7 @@ class data_GUI:
             if handle.get_visible():
                 new_handles.append(handle)
                 new_labels.append(label)
-        self.ax.legend(new_handles, new_labels, loc='lower center')
+        self.ax.legend(new_handles, new_labels, loc='lower center',facecolor=(1,1,1,0.5))
         self.canvas.draw()
 
     def toggle_unit(self):
@@ -676,6 +763,7 @@ class data_GUI:
         # get value
         self.aggregate_size = int(self.aggregate_size_entry.get())
 
+    # ADC clip threshold
     def update_ADC_clip_threshold(self):
         # get value
         self.ADC_clip_threshold = int(self.ADC_clip_threshold_entry.get())
@@ -688,6 +776,18 @@ class data_GUI:
 
         print(f'Updated ADC clip threshold to {self.ADC_clip_threshold}')
 
+    # Downsample_factor
+    def update_Downsample_factor(self):
+        # get value
+        self.Downsample_factor = int(self.Downsample_factor_entry.get())
+
+        # write vio
+        curr_param = next((obj for obj in start_up_params if obj.cmd == 'Downsample_factor'), None)
+        addr, val, ignore = parse_cmd('Downsample_factor', self.Downsample_factor)
+        send_to_dut(ser, addr, val)
+        time.sleep(0.2)
+
+        print(f'Updated Downsample factor to {self.Downsample_factor}')
 
     def update_plot(self):
         self.ax.relim()
@@ -814,7 +914,7 @@ class data_GUI:
         # for params in start_up_params:
         #     addr, val, ignore = parse_cmd(params.cmd, int(params.default_val))
         #     send_to_dut(ser, addr, val)
-        cmd, addr, val = reset_all()
+        cmd, addr, val = reset_all(rootGUI=self)
         send_to_dut(ser, addr, val)
 
         while not self.quit_flag:
@@ -827,7 +927,7 @@ class data_GUI:
                 if task[0] == 'reset' or task[0] == 'write':
                     if len(task) == 2:
                         if  task[0] == 'reset' and task[1] == 'all':
-                            cmd, addr, val = reset_all()
+                            cmd, addr, val = reset_all(rootGUI=self)
                             curr_val = np.array([params.default_val for params in start_up_params])
                             conv_factor = np.array([params.conv_factor for params in start_up_params])
                             unit = np.array([params.unit for params in start_up_params])
@@ -870,7 +970,7 @@ class data_GUI:
                         continue
                     elif task[1] == 'reset':
                         curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
-                        addr, ignore, val = parse_cmd(cmd, curr_param.default_val)
+                        addr, ignore, val = parse_cmd(cmd, curr_param.default_val,rootGUI=self)
                         curr_val = curr_param.curr_val
                         conv_factor = curr_param.conv_factor
                         unit = curr_param.unit
@@ -881,7 +981,7 @@ class data_GUI:
                             val_new = int(np.floor(int(task[1]) / curr_param.conv_factor))
                         else:
                             val_new = int(task[1])
-                        addr, val, ignore = parse_cmd(cmd, val_new)
+                        addr, val, ignore = parse_cmd(cmd, val_new,rootGUI=self)
                         curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
                         curr_val = curr_param.curr_val
                         conv_factor = curr_param.conv_factor
@@ -948,7 +1048,7 @@ class data_GUI:
                     curr_val = start_val
                     for i in range(num_steps):
 
-                        addr, val, ignore = parse_cmd(cmd, curr_val)
+                        addr, val, ignore = parse_cmd(cmd, curr_val,rootGUI=self)
                         send_to_dut(ser, addr, val)
 
                         curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
