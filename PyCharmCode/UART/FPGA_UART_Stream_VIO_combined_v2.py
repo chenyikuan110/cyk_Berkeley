@@ -37,13 +37,13 @@ class vio_param:
 emulation_on = False
 if os.name == 'nt':
     ser = serial.Serial()
-    ser.baudrate = 115200
+    ser.baudrate = 230400  # 115200
     ser.port = 'COM7' if emulation_on else 'COM9'  # CHANGE THIS COM PORT 7 is emulation, 9 is FPGA here
     ser.timeout = 2
     ser.open()
 else:
     ser = serial.Serial('/dev/ttys002')
-    ser.baudrate = 115200  # 921600
+    ser.baudrate = 230400  # 115200  # 921600
 
 # emulation enable
 
@@ -75,7 +75,7 @@ plot_length = array_length
 fsample_DAC = 80E6
 fund_tone = fsample_DAC / 4 / LUT_size
 
-fsample_ADC = 10E6
+fsample_ADC = 80E6
 
 ADC_clip_threshold = 65535
 
@@ -83,16 +83,16 @@ Downsample_factor = 8
 
 # default params
 start_up_params = []
-start_up_params.append(vio_param('TX_DAC_frequency_word', 16384, 0, 3, fund_tone, 'Hz'))
+start_up_params.append(vio_param('TX_DAC_frequency_word', 4096, 0, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('TX_DAC_initial_phase', 0, 3, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_IQ_phase_diff', 32767, 6, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_Mult_enable', 1, 9, 1))
 start_up_params.append(vio_param('TX_Mult_gain', 2048, 10, 3))
-start_up_params.append(vio_param('VM_DAC_frequency_word', 16384, 13, 3, fund_tone, 'Hz'))
+start_up_params.append(vio_param('VM_DAC_frequency_word', 4096, 13, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('VM_DAC_initial_phase', 0, 16, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_IQ_phase_diff', 32767, 19, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_Mult_enable', 1, 22, 1))
-start_up_params.append(vio_param('VM_Mult_gain', 400, 23, 3))
+start_up_params.append(vio_param('VM_Mult_gain', 200, 23, 3))
 start_up_params.append(vio_param('ADC_clip_threshold', 65535, 26, 2))
 start_up_params.append(vio_param('Downsample_factor', 8, 28, 1))
 
@@ -256,6 +256,7 @@ class data_GUI:
         global multiply_factor
         global ADC_clip_threshold
         global Downsample_factor
+        global fsample_ADC
         global display_freq
         global aggregate
         global aggregate_size
@@ -269,11 +270,13 @@ class data_GUI:
         # this flag kills both threads
         self.quit_flag = False
         self.window_show = True
+        self.fsample_ADC = fsample_ADC
         self.scale_FS = tk.BooleanVar(value=scale_FS)
         self.scale = scale
         self.plot_frequency = tk.BooleanVar(value=display_freq)
         self.aggregate = tk.BooleanVar(value=aggregate)
         self.aggregate_size = aggregate_size
+        self.Downsample_enable = tk.BooleanVar(value=False)
         self.ADC_clip_threshold = ADC_clip_threshold
         self.Downsample_factor = Downsample_factor
 
@@ -303,6 +306,7 @@ class data_GUI:
         self.var_Phase = tk.BooleanVar(value=False)
         self.var_Peak = tk.BooleanVar(value=False)
 
+
         self.cb_I_data = ttk.Checkbutton(self.CB_Frame, text="I_data", variable=self.var_I_data,
                                          command=self.toggle_curve)
         self.cb_Q_data = ttk.Checkbutton(self.CB_Frame, text="Q_data", variable=self.var_Q_data,
@@ -322,7 +326,8 @@ class data_GUI:
         self.x_range_max = plot_length
 
         if self.plot_frequency.get():
-            self.x_range_max = plot_length / array_length * fsample_ADC / 2
+            self.x_range_max = plot_length / array_length * fsample_ADC / 2 \
+                               / (self.Downsample_factor if self.Downsample_enable.get() else 1)
         self.x_range_plot = [x * (self.x_range_max / plot_length) for x in self.x_range]
 
         self.x_max = self.x_range_max
@@ -414,6 +419,13 @@ class data_GUI:
         self.aggregate_size_entry.insert(0, f'{self.aggregate_size}')
         self.aggregate_size_entry.grid(row=0, column=2, padx=5)
         self.aggregate_size_entry.bind("<FocusOut>", lambda e: self.update_aggregate_size())
+
+        # Downsample enable
+        self.Downsample_enable_button = ttk.Checkbutton(self.Option_subframe, text="Enable Downsample",
+                                                        variable=self.Downsample_enable,
+                                                        command=self.toggle_Downsample_enable)
+        self.Downsample_enable_button.grid(row=0, column=3, sticky='e', padx=10, pady=5)
+
 
         # Threshold
         self.ADC_clip_threshold_label = tk.Label(self.Option_subframe, text="ADC clip threshold")
@@ -561,18 +573,31 @@ class data_GUI:
 
         # Start the thread for updating the plot
         self.vio_thread = threading.Thread(target=self.run_vio)
-        self.vio_thread.start()
+        # self.vio_thread.start()
+        self.start_thread('vio')
 
         self.count = 0
         # self.update_thread = threading.Thread(target=self.fpga_stream_old())
         self.update_thread = threading.Thread(target=self.receive_data)
-        self.update_thread.start()
+        # self.update_thread.start()
+        self.start_thread('data')
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         # add a flag monitor
         self.root.after(1, self.check_quit_flag())
 
         print("Running...")
+
+    def start_thread(self, thread_name=None):
+        if thread_name:
+            if thread_name == 'data':
+                if not self.update_thread.is_alive():
+                    self.update_thread = threading.Thread(target=self.receive_data)
+                self.update_thread.start()
+            elif thread_name == 'vio':
+                if not self.vio_thread.is_alive():
+                    self.vio_thread = threading.Thread(target=self.run_vio)
+                self.vio_thread.start()
 
     def safe_destroy(self):
         try:
@@ -694,18 +719,20 @@ class data_GUI:
         self.ax.legend(new_handles, new_labels, loc='lower center',facecolor=(1,1,1,0.5))
         self.canvas.draw()
 
-    def toggle_unit(self):
+    def change_x_scale(self, toggled_unit=False):
         self.ax.relim()
         self.canvas.draw()
 
         # reset textbox
         # print('before',self.x_min, self.x_max)
-        x_factor = fsample_ADC / 2 / plot_length
+        x_factor = self.fsample_ADC / 2 / plot_length
         self.x_range_max = plot_length
         if self.plot_frequency.get():
-            self.x_range_max = plot_length / array_length * fsample_ADC / 2
-        self.x_min = self.x_min * x_factor if self.plot_frequency.get() else self.x_min / x_factor
-        self.x_max = self.x_max * x_factor if self.plot_frequency.get() else self.x_max / x_factor
+            self.x_range_max = plot_length / array_length * self.fsample_ADC / 2\
+                               / (self.Downsample_factor if self.Downsample_enable.get() else 1)
+        if toggled_unit:
+            self.x_min = self.x_min * x_factor if self.plot_frequency.get() else self.x_min / x_factor
+            self.x_max = self.x_max * x_factor if self.plot_frequency.get() else self.x_max / x_factor
         # print('after',self.x_min, self.x_max)
 
         # update sliders
@@ -740,8 +767,19 @@ class data_GUI:
         self.update_plot()
         print(f'Plot x-axis is bin-index' if not self.plot_frequency.get() else f'Plot x-axis is frequency (Hz).')
 
+    def toggle_unit(self):
+        self.change_x_scale(toggled_unit=True)
+
     def toggle_aggregate(self):
         print(f'Plot aggregated results.' if self.aggregate.get() else f'Plot raw results from FPGA.')
+
+    def toggle_Downsample_enable(self):
+        self.change_x_scale(toggled_unit=False)  # update the plot scale
+        if not self.Downsample_enable.get():
+            # if self.xlim_max_slider.get()
+            self.x_max = (plot_length / array_length * self.fsample_ADC / 2)
+            self.change_x_scale(toggled_unit=False)
+        print(f'Plot with downsample enabled.' if self.Downsample_enable.get() else f'Plot downsample disabled.')
 
     def toggle_scale_FS(self):
         curr_y_min = self.ylim_min_slider.get()
@@ -787,6 +825,8 @@ class data_GUI:
         send_to_dut(ser, addr, val)
         time.sleep(0.2)
 
+        self.change_x_scale(toggled_unit=False) # update the plot scale
+
         print(f'Updated Downsample factor to {self.Downsample_factor}')
 
     def update_plot(self):
@@ -800,19 +840,19 @@ class data_GUI:
         global plot_length
         global emulation_on
         global array_length
-        global fsample_ADC
         global transmit_length
 
         time.sleep(0.2)
         print(f'Start to receive ...')
 
         while self.window_show:
-            if self.count == 1_000_000:
+            if self.count == 1_000_000_000:
                 return
 
             self.x_range_max = plot_length
             if self.plot_frequency.get():
-                self.x_range_max = plot_length / array_length * fsample_ADC / 2
+                self.x_range_max = plot_length / array_length * self.fsample_ADC / 2\
+                               / (self.Downsample_factor if self.Downsample_enable.get() else 1)
             self.x_range_plot = [x * (self.x_range_max / plot_length) for x in self.x_range]
 
             # receive sequence via UART
@@ -868,8 +908,10 @@ class data_GUI:
             if self.plot_frequency.get():
                 peak_x_lower_bound = int(np.floor(peak_x_lower_bound / x_factor))
                 peak_x_upper_bound = int(np.ceil(peak_x_upper_bound / x_factor))
-
-            peak_index = np.argmax(mag_array[peak_x_lower_bound:peak_x_upper_bound])
+            if peak_x_lower_bound == peak_x_upper_bound:
+                peak_index = 0
+            else:
+                peak_index = np.argmax(mag_array[peak_x_lower_bound:peak_x_upper_bound])
             # peak_value = np.max(mag_array[peak_x_lower_bound:peak_x_upper_bound])
             peak_value = mag_array[peak_index+peak_x_lower_bound]
 
@@ -923,7 +965,7 @@ class data_GUI:
             task = task.split()
             conv_factor = 1
             unit = ''
-            if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q', 'bits'])) or len(task) == 2:
+            if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q', 'bits','win','w'])) or len(task) == 2:
                 if task[0] == 'reset' or task[0] == 'write':
                     if len(task) == 2:
                         if  task[0] == 'reset' and task[1] == 'all':
@@ -1064,6 +1106,11 @@ class data_GUI:
                             cont = input("press enter to step\n")
                             if cont == 'q':
                                 break
+                elif task[0] == 'w' or task[0] == 'win':
+                    self.window_show = True
+                    self.root.deiconify()
+                    self.root.after(200, self.start_thread('data'))
+                    print(f'Reviving the window')
 
                 elif task[0] == 'q':
                     self.quit_flag = True
@@ -1116,7 +1163,8 @@ class data_GUI:
             ax[0].set_title('Awaiting frame results I and Q')
             x_max = plot_length
             if display_freq:
-                x_max = plot_length / array_length * fsample_ADC / 2
+                x_max = plot_length / array_length * self.fsample_ADC / 2\
+                               / (self.Downsample_factor if self.Downsample_enable.get() else 1)
             x_range_plot = [x * (x_max / plot_length) for x in x_range]
             ax[0].set_xlim(0, x_max)
             ax[0].set_ylim(-40000 if not self.scale_FS.get() else -40000/self.scale,
@@ -1158,7 +1206,8 @@ class data_GUI:
 
             x_max = plot_length
             if display_freq:
-                x_max = plot_length / array_length * fsample_ADC / 2
+                x_max = plot_length / array_length * self.fsample_ADC / 2\
+                               / (self.Downsample_factor if self.Downsample_enable.get() else 1)
             x_range_plot = [x * (x_max / plot_length) for x in x_range]
             # receive sequence via UART
             if not emulation_on:
