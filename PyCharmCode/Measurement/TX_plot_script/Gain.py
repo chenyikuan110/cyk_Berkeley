@@ -148,6 +148,10 @@ for i,file in enumerate(list(csv_files)):
     csv_name = f'TX_RFGAIN_{file_name_write}.csv'
     csv_path = os.path.join(my_dir, my_subdir, csv_name)
 
+    label_name = ' '.join(file_name_parse[3:-1])
+    if not label_name == 'STRONGER LO2':
+        continue
+
     with open(csv_path, 'w', newline='') as csvfile:
         print(csv_path)
         csv_writer = csv.writer(csvfile, delimiter=',')
@@ -165,9 +169,10 @@ for i,file in enumerate(list(csv_files)):
         curr_max_imrr = line_max_imrr
         curr_argmax_imrr = np.argmax(imrr)
 
-    label_name = ' '.join(file_name_parse[3:-1])
+    
     # ax1.plot(freq_rec_pw, gain, label=f'{label_name}',linewidth=2*2, alpha=1) # non IEEE
-    ax1.plot(freq_rec_pw, gain, label=f'{label_name}', alpha=1)  # IEEE
+    # ax1.plot(freq_rec_pw, gain, label=f'{label_name}', alpha=1)  # IEEE
+    ax1.plot(freq_rec_pw, gain, label=f'EIRP',linewidth=2, alpha=1)  # IEEE
     # ax1.plot(freq_rec_pw[0:len(freq_rec_pw)-window_size], smoothed_gain[0:len(freq_rec_pw)-window_size], linewidth=2,
     # label=f'Smoothed {file_name_parse[-3]}')
     # ax2.plot(freq_rec_pw,imrr,label=f'{label_name}',linewidth=2*2, alpha=1)
@@ -176,24 +181,24 @@ for i,file in enumerate(list(csv_files)):
 ax=plt.gca()
 bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
 arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=40")
-# kw = dict(xycoords='data',textcoords="axes fraction",
-#           arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=12*2) # non IEEE
 kw = dict(xycoords='data',textcoords="axes fraction",
-          arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=6) # IEEE
-ax1.annotate(f'Max EIRP = {curr_max:.2f} dB', xy=(freq_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
+          arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=12) # non IEEE
+# kw = dict(xycoords='data',textcoords="axes fraction",
+#           arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=6) # IEEE
+ax1.annotate(f'Max EIRP = {curr_max:.2f} dBm', xy=(freq_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
 print(curr_argmax, curr_max)
 
-# ax1.axhline(y=curr_max, color='r', linestyle='--')
-# ax1.tick_params(labelsize = 28*2)
-# ax1.set_xlabel('Freq [GHz]',fontsize=30*2)
-# ax1.set_ylabel('Transmitter EIRP [dB]',fontsize=30*2)
-# ax1.grid(True,linestyle='--', dashes=(5, 10))
-# ax1.legend(loc='lower center', fontsize=14*2)
-ax1.axhline(y=curr_max, linestyle='--')
-ax1.set_xlabel('Freq [GHz]')
-ax1.set_ylabel('Transmitter EIRP [dB]')
-ax1.grid(True,linestyle='--',alpha=0.5)
-ax1.legend(loc='lower center')
+ax1.axhline(y=curr_max, color='r', linestyle='--')
+ax1.tick_params(labelsize = 28)
+ax1.set_xlabel('Freq [GHz]',fontsize=30)
+ax1.set_ylabel('Transmitter EIRP [dBm]',fontsize=30)
+ax1.grid(True,linestyle='--', dashes=(5, 10))
+ax1.legend(loc='lower center', fontsize=14*2)
+# ax1.axhline(y=curr_max, linestyle='--')
+# ax1.set_xlabel('Freq [GHz]')
+# ax1.set_ylabel('Transmitter EIRP [dB]')
+# ax1.grid(True,linestyle='--',alpha=0.5)
+# ax1.legend(loc='lower center')
 
 xaxis_range = [int(freq_rec_pw[0]), int(freq_rec_pw[-1])]
 xticks = np.arange(xaxis_range[0], xaxis_range[1], 5)  # Ticks with a step of 20

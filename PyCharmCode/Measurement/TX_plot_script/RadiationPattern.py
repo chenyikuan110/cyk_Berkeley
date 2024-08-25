@@ -109,7 +109,7 @@ angles = np.linspace(-180, 179.5, 720)
 # print(path_loss)
 
 # Load DUT data
-my_subdir = "Rad/Theta"
+my_subdir = "Rad/Phi"
 
 csv_files = glob.glob(os.path.join(my_dir, my_subdir, 'TX_Rad*.csv'))
 
@@ -176,10 +176,10 @@ bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
 #           arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=12*2) # non IEEE
 kw = dict(xycoords='data',textcoords="axes fraction",
            bbox=bbox_props, ha="right", va="top",fontsize=20) # IEEE
-ax1.annotate(f'Max EIRP = {curr_max:.2f} dB', xy=(angle_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
+ax1.annotate(f'Max EIRP = {curr_max:.2f} dBm', xy=(angle_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
 print(curr_argmax, curr_max)
 
-ax1.set_ylabel('Transmitter EIRP [dB]',fontsize=20,labelpad=35)
+ax1.set_ylabel('Transmitter EIRP [dBm]',fontsize=20,labelpad=35)
 yaxis_range = [-10, curr_max+15]
 
 yticks = np.arange(yaxis_range[0]+10, yaxis_range[1]-10, 5)  # Ticks with a step of 20

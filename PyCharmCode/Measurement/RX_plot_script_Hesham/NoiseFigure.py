@@ -58,6 +58,8 @@ for i,file in enumerate(list(csv_files)):
     file_gain = file_name_parse[-3]
 
     gain_file = f'{my_dir}{my_subdir}/gain/RX_RFGain_{file_gain}_attn_{file_attn}.csv'
+    if file_gain == 'gain31':
+        continue
     # print(gain_file)
     dir = os.path.abspath(f'{my_dir}{my_subdir}/gain/')
     all_files = os.listdir(dir)
@@ -98,8 +100,10 @@ for i,file in enumerate(list(csv_files)):
         print(2,line_min)
         curr_argmin = np.nanargmin(smoothed_nf[0:len(freq_rec_rx)])
 
-    plt.plot(freq_rec_rx, nf, label=f'NF_at_{file_gain}',linestyle='--', alpha=0.7)
-    plt.plot(freq_rec_rx[0:len(freq_rec_rx)-window_size], smoothed_nf[0:len(freq_rec_rx)-window_size], label=f'Smoothed NF at  {file_gain} ')
+    # plt.plot(freq_rec_rx, nf, label=f'NF_at_{file_gain}',linestyle='--', alpha=0.7)
+    # plt.plot(freq_rec_rx[0:len(freq_rec_rx)-window_size], smoothed_nf[0:len(freq_rec_rx)-window_size], label=f'Smoothed NF at  {file_gain} ')
+    plt.plot(freq_rec_rx, nf, label=f'NF',linestyle='--', linewidth=2, alpha=0.7)
+    plt.plot(freq_rec_rx[0:len(freq_rec_rx)-window_size], smoothed_nf[0:len(freq_rec_rx)-window_size], linewidth=2, label=f'Smoothed NF')
 
 ax=plt.gca()
 bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
@@ -110,8 +114,8 @@ ax.annotate(f'Min NF = {curr_min:.2f} dB', xy=(freq_rec_rx[curr_argmin], curr_mi
 
 plt.tick_params(labelsize = 28)
 plt.xlabel('Freq [GHz]',fontsize=30)
-plt.ylabel('Receiver Noise Figure [dB]',fontsize=30)
+plt.ylabel('Receiver Noise Figure [dB] ',fontsize=30)
 plt.grid(True,linestyle='--', dashes=(5, 10))
-plt.legend(loc="upper center", fontsize = 14)
+plt.legend(loc="upper center", fontsize = 14*2)
 plt.axis([freq_rec_rx[1],freq_rec_rx[-1],0,90])
 plt.show()

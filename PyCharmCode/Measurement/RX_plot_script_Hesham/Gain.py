@@ -85,13 +85,15 @@ print(ref_power, horn_gain, fspl, atten14)
 
 # Load received power data
 my_subdir = "0724"  # attn10
+
 # my_subdir = ""
 
 csv_files = glob.glob(os.path.join(my_dir, my_subdir, 'RX_RF_2024*.csv'))
 
 # Plotting
 # plt.figure()
-plt.style.use(['science','ieee','no-latex'])
+# plt.style.use(['science','ieee','no-latex'])
+plt.style.use(['science','no-latex'])
 fig, ax1 = plt.subplots()
 
 # Print the file names
@@ -114,12 +116,14 @@ for i,file in enumerate(list(csv_files)):
     # print(freq_rec_rx, rec_rx)
     # Calculate gain and convert to numpy array
     if file_attn == 10:
+        continue
         interp_eirp = interp1d(freq, eirp10, kind='cubic', fill_value="extrapolate")
     elif file_attn == 12:
+        continue
         interp_eirp = interp1d(freq, eirp12, kind='cubic', fill_value="extrapolate")
     elif file_attn == 14:
         interp_eirp = interp1d(freq, eirp14, kind='cubic', fill_value="extrapolate")
-    gain = rec_rx - interp_eirp(freq_rec_rx) + 3 # 3 dB due to the output balun
+    gain = rec_rx - interp_eirp(freq_rec_rx) + 3 # 3 dB due to the output balun， 5 due to max gain
     gain = np.array(gain)
 
     # Calculate smoothed gain with moving average
@@ -140,28 +144,30 @@ for i,file in enumerate(list(csv_files)):
     if line_max > curr_max:
         curr_max = line_max
         curr_argmax = np.argmax(smoothed_gain[window_size:len(freq_rec_rx)-window_size])+window_size
-    ax1.plot(freq_rec_rx, gain, label=f'{file_name_parse[-3]}', alpha=0.7)
-    ax1.plot(freq_rec_rx[0:len(freq_rec_rx)-window_size], smoothed_gain[0:len(freq_rec_rx)-window_size], label=f'Smoothed {file_name_parse[-3]} attn {file_attn}')
+    # ax1.plot(freq_rec_rx, gain, label=f'{file_name_parse[-3]}', alpha=0.7)
+    ax1.plot(freq_rec_rx, gain, linewidth=2, label=f'Gain', alpha=0.7)
+    # ax1.plot(freq_rec_rx[0:len(freq_rec_rx)-window_size], smoothed_gain[0:len(freq_rec_rx)-window_size], label=f'Smoothed {file_name_parse[-3]} attn {file_attn}')
+    ax1.plot(freq_rec_rx[0:len(freq_rec_rx)-window_size], smoothed_gain[0:len(freq_rec_rx)-window_size], linewidth=2,label=f'Smoothed Gain')
 
 ax=plt.gca()
 bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
 arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=40")
 kw = dict(xycoords='data',textcoords="axes fraction",
-          arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=6) # 6 for IEEE, 12 for normal
+          arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=12) # 6 for IEEE, 12 for normal
 ax.annotate(f'Max gain = {curr_max:.2f} dB', xy=(freq_rec_rx[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
 
 
-# ax1.axhline(y=curr_max, color='r', linestyle='--')
-# ax1.tick_params(labelsize = 28)
-# ax1.set_xlabel('Freq [GHz]',fontsize=30)
-# ax1.set_ylabel('Receiver OTA Gain [dB]',fontsize=30)
-# ax1.grid(True,linestyle='--', dashes=(5, 10))
-# ax1.legend(loc='lower center', fontsize=14)
-ax1.axhline(y=curr_max, linestyle='--')
-ax1.set_xlabel('Freq [GHz]')
-ax1.set_ylabel('Receiver OTA Gain [dB]')
-ax1.grid(True,linestyle='--',alpha=0.5)
-ax1.legend(loc='lower center',fontsize=7)
+ax1.axhline(y=curr_max, color='r', linestyle='--')
+ax1.tick_params(labelsize = 28)
+ax1.set_xlabel('Freq [GHz]',fontsize=30)
+ax1.set_ylabel('Receiver OTA Gain [dB]',fontsize=30)
+ax1.grid(True,linestyle='--', dashes=(5, 10))
+ax1.legend(loc='lower center', fontsize=14*2)
+# ax1.axhline(y=curr_max, linestyle='--')
+# ax1.set_xlabel('Freq [GHz]')
+# ax1.set_ylabel('Receiver OTA Gain [dB]')
+# ax1.grid(True,linestyle='--',alpha=0.5)
+# ax1.legend(loc='lower center',fontsize=7)
 
 xaxis_range = [int(freq_rec_rx[1]), int(freq_rec_rx[-1])]
 xticks = np.arange(xaxis_range[0], xaxis_range[1]-0, 5)  # Ticks with a step of 20
@@ -174,15 +180,15 @@ ax1.set_yticklabels([str(tick) for tick in yticks])
 
 ax1.axis([freq_rec_rx[1],freq_rec_rx[-1],yaxis_range[0],yaxis_range[1]])
 
-ax2 = ax1.twiny()
+# ax2 = ax1.twiny()
 
 scale_factor = 18
 new_x = freq_rec_rx / scale_factor
 
 # Set the limits and ticks of the new x-axis
-ax2.set_xlim(ax1.get_xlim()[0] * scale_factor, ax1.get_xlim()[1] * scale_factor)
-ax2.set_xticks(ax1.get_xticks() * scale_factor)
-ax2.set_xticklabels([f'{tick/scale_factor:.2f}' for tick in ax1.get_xticks()])
-ax2.set_xlabel('LO subharmonic frequency at input [GHz]')
+# ax2.set_xlim(ax1.get_xlim()[0] * scale_factor, ax1.get_xlim()[1] * scale_factor)
+# ax2.set_xticks(ax1.get_xticks() * scale_factor)
+# ax2.set_xticklabels([f'{tick/scale_factor:.2f}' for tick in ax1.get_xticks()])
+# ax2.set_xlabel('LO subharmonic frequency at input [GHz]')
 
 plt.show()
