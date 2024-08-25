@@ -14,15 +14,19 @@ import itertools
 my_dir = ""
 
 # Load DUT data
-my_subdir = "20240822_SENDAR_Cancel"
+my_subdir = "20240807_FMCW_on_chn_power/20GHz_Span"
 # csv_format = 'FMCW*.csv'
-csv_format = 'Trace*'
+csv_format = '*'
 sort_regex = r'_(\d+(?:\.\d+)?)'
-normalize = False
+normalize = True
 # plot_name = 'Received Power\n Normalized to Leakage [dB]'
-plot_name = 'Measured Power [dBm]'
+# plot_name = 'Measured Power [dBm]'
+plot_name = 'Normalized Power [dB]'
 font_downscale = 2
-legend_loc = 'lower center'
+legend_loc = 'upper center'
+linewidth=2
+
+marker_on = False
 
 plt.rcParams['axes.unicode_minus'] = False
 # Initialization
@@ -82,8 +86,8 @@ curr_argmax_imrr = 0
 i = 0
 for i,file in enumerate(list(csv_files)):
 
-    if i  == len(csv_files)-1:
-        continue
+    # if i  == len(csv_files)-1:
+    #     continue
 
     print(os.path.basename(file))
 
@@ -101,6 +105,7 @@ for i,file in enumerate(list(csv_files)):
     freq_rec_pw = tmp[0,:]
     rec_pw = tmp[1,:]
     print(freq_rec_pw)
+    freq_rec_pw = (freq_rec_pw+125e9)/1e9
 
     gain = rec_pw # 3 dB due to the output balun
     gain = np.array(gain)
@@ -115,26 +120,27 @@ for i,file in enumerate(list(csv_files)):
         curr_max = line_max
         curr_argmax = np.argmax(smoothed_gain[window_size:len(freq_rec_pw)-window_size])+window_size
 
-    label_name = ' '.join(file_name_parse[1:-1])
+    label_name = ' '.join(file_name_parse[1:-2])
     offset = -line_max if normalize else 0 # 0 if label_name == 'IQ' else 10
 
-
-
-    ax1.plot(freq_rec_pw, gain + offset, next(line_cycle),label=f'{label_name}',linewidth=1.5, alpha=1) # non IEEE
+    if marker_on:
+        ax1.plot(freq_rec_pw, gain + offset, next(line_cycle),label=f'{label_name}',marker='D', linewidth=2, alpha=1) # non IEEE
+    else:
+        ax1.plot(freq_rec_pw, gain + offset, next(line_cycle),label=f'{label_name}',linewidth=2, alpha=1) # non IEEE
     # ax1.plot(freq_rec_pw, gain, label=f'{label_name}', alpha=1)  # IEEE
 
 
-ax=plt.gca()
-bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
-arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=40")
-kw = dict(xycoords='data',textcoords="axes fraction",
-          arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=12*2) # non IEEE
-# ax1.annotate(f'Max EIRP = {curr_max:.2f} dB', xy=(freq_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
-print(curr_argmax, curr_max)
+# ax=plt.gca()
+# bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
+# arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=40")
+# kw = dict(xycoords='data',textcoords="axes fraction",
+#           arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=12*2) # non IEEE
+# # ax1.annotate(f'Max EIRP = {curr_max:.2f} dB', xy=(freq_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
+# print(curr_argmax, curr_max)
 
 # ax1.axhline(y=curr_max, color='r', linestyle='--')
 ax1.tick_params(labelsize = 28*2)
-ax1.set_xlabel('Freq [Hz]',fontsize=20*2)
+ax1.set_xlabel('Freq [GHz]',fontsize=20*2)
 ax1.set_ylabel(plot_name,fontsize=20*2)
 ax1.grid(True,linestyle='--', dashes=(5, 10))
 ax1.legend(loc=legend_loc, fontsize=14*2*4/(i+1)/font_downscale, facecolor='white', edgecolor='black')
@@ -142,17 +148,17 @@ ax1.legend(loc=legend_loc, fontsize=14*2*4/(i+1)/font_downscale, facecolor='whit
 print("curr max is ",curr_max)
 xaxis_range = [int(freq_rec_pw[0]), int(freq_rec_pw[-1])]
 spacing = np.floor(xaxis_range[1]-xaxis_range[0])/5
-xticks = np.arange(xaxis_range[0], xaxis_range[1], spacing)  # Ticks with a step of 20
+xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, spacing)  # Ticks with a step of 20
 print("xticks is ",xticks, "spacing is ",spacing)
-# ax1.set_xticks(xticks)
-yaxis_range = [-100+offset, curr_max+10+offset]
+ax1.set_xticks(xticks)
+yaxis_range = [np.min([-30, np.min(gain)])-10+offset, np.max([-50,curr_max])+0+offset]
 
-yticks = np.arange(yaxis_range[0]+10, yaxis_range[1]-10, 20)  # Ticks with a step of 20
-ax1.set_yticks(yticks)
-ax1.set_yticklabels([str(tick) for tick in yticks])
+# yticks = np.arange(yaxis_range[0]+10, yaxis_range[1]-0, 10)  # Ticks with a step of 20
+# ax1.set_yticks(yticks)
+# ax1.set_yticklabels([str(tick) for tick in yticks])
 #
-ax1.axis([freq_rec_pw[0]-2,freq_rec_pw[-1]+2,yaxis_range[0],yaxis_range[1]])
-print("plotting")
-plt.gca().yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+ax1.axis([freq_rec_pw[0]+2,freq_rec_pw[-1]-2,yaxis_range[0],yaxis_range[1]])
+# print("plotting")
+# plt.gca().yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 plt.show()
 
