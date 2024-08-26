@@ -14,19 +14,19 @@ import itertools
 my_dir = ""
 
 # Load DUT data
-my_subdir = "20240807_FMCW_on_chn_power/20GHz_Span"
-# csv_format = 'FMCW*.csv'
-csv_format = '*'
+my_subdir = "20240823_VM_TX"
+csv_format = 'TraceCan*.csv'
+# csv_format = '*'
 sort_regex = r'_(\d+(?:\.\d+)?)'
-normalize = True
+normalize = False
 # plot_name = 'Received Power\n Normalized to Leakage [dB]'
 # plot_name = 'Measured Power [dBm]'
-plot_name = 'Normalized Power [dB]'
+plot_name = 'Cancellation [dB]'
 font_downscale = 2
 legend_loc = 'upper center'
 linewidth=2
 
-marker_on = False
+marker_on = True
 
 plt.rcParams['axes.unicode_minus'] = False
 # Initialization
@@ -105,7 +105,8 @@ for i,file in enumerate(list(csv_files)):
     freq_rec_pw = tmp[0,:]
     rec_pw = tmp[1,:]
     print(freq_rec_pw)
-    freq_rec_pw = (freq_rec_pw+125e9)/1e9
+    # freq_rec_pw = (freq_rec_pw+125e9)/1e9
+    freq_rec_pw = (freq_rec_pw)/1e9
 
     gain = rec_pw # 3 dB due to the output balun
     gain = np.array(gain)
@@ -114,7 +115,6 @@ for i,file in enumerate(list(csv_files)):
     window_size = 1
     smoothed_gain = np.convolve(gain, np.ones(window_size)/window_size, mode='same')
 
-    # EIRP
     line_max = smoothed_gain[window_size:len(freq_rec_pw)-window_size].max()
     if line_max > curr_max:
         curr_max = line_max
@@ -148,16 +148,20 @@ ax1.legend(loc=legend_loc, fontsize=14*2*4/(i+1)/font_downscale, facecolor='whit
 print("curr max is ",curr_max)
 xaxis_range = [int(freq_rec_pw[0]), int(freq_rec_pw[-1])]
 spacing = np.floor(xaxis_range[1]-xaxis_range[0])/5
-xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, spacing)  # Ticks with a step of 20
+# xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, spacing)  # Ticks with a step of 20
+xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, 1)  
 print("xticks is ",xticks, "spacing is ",spacing)
 ax1.set_xticks(xticks)
-yaxis_range = [np.min([-30, np.min(gain)])-10+offset, np.max([-50,curr_max])+0+offset]
+print(gain[~np.isnan(gain)])
+print(np.min(gain[~np.isnan(gain)]))
+print(curr_max)
+yaxis_range = [np.min([-0, np.min(gain[~np.isnan(gain)])])-10+offset, np.max([-50,curr_max])+5+offset]
 
-# yticks = np.arange(yaxis_range[0]+10, yaxis_range[1]-0, 10)  # Ticks with a step of 20
-# ax1.set_yticks(yticks)
+yticks = np.arange(yaxis_range[0]+10, yaxis_range[1]-0, 10)  # Ticks with a step of 20
+ax1.set_yticks(yticks)
 # ax1.set_yticklabels([str(tick) for tick in yticks])
 #
-ax1.axis([freq_rec_pw[0]+2,freq_rec_pw[-1]-2,yaxis_range[0],yaxis_range[1]])
+ax1.axis([freq_rec_pw[0],freq_rec_pw[-1],yaxis_range[0],yaxis_range[1]])
 # print("plotting")
 # plt.gca().yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 plt.show()
