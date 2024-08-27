@@ -17,24 +17,27 @@ import matplotlib.pyplot as plt
     # bits_string = '{:0{width}b}'.format(num, width=16)
     # print(bits_string)
     # array[i] = num
+#
+# def print_twos_complement(val, bits):
+#     """Print the two's complement of an integer value."""
+#     if val < 0:
+#         val = (1 << bits) + val
+#     format_string = '{:0' + str(bits) + 'b}'
+#     return format_string.format(val)
+#
+# freq = 40E3
+# npoint = 32768
+# t = np.linspace(0,1/freq/4,npoint)
+# array = []
+# for i in range(0,npoint):
+#     # string = int(np.floor((2**15-1)*np.sin(2*np.pi*freq*t[i])))
+#     string = int(np.floor((2 ** 15 - 1) * np.sin(2 * np.pi * freq * t[i])))
+#     array.append(string)
+#     bits = print_twos_complement(string,16)
+#     print(bits)
+# plt.figure()
+# plt.plot(array)
+# plt.show()
 
-def print_twos_complement(val, bits):
-    """Print the two's complement of an integer value."""
-    if val < 0:
-        val = (1 << bits) + val
-    format_string = '{:0' + str(bits) + 'b}'
-    return format_string.format(val)
-
-freq = 40E3
-npoint = 32768
-t = np.linspace(0,1/freq/4,npoint)
-array = []
-for i in range(0,npoint):
-    # string = int(np.floor((2**15-1)*np.sin(2*np.pi*freq*t[i])))
-    string = int(np.floor((2 ** 15 - 1) * np.sin(2 * np.pi * freq * t[i])))
-    array.append(string)
-    bits = print_twos_complement(string,16)
-    print(bits)
-plt.figure()
-plt.plot(array)
-plt.show()
+for i in range(32767,32768):
+    print(i, '{:0{width}b}'.format(i, width=17))
