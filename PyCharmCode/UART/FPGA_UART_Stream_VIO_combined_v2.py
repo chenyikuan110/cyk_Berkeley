@@ -85,9 +85,9 @@ Downsample_factor = 8
 start_up_params = []
 start_up_params.append(vio_param('TX_DAC_frequency_word', 4096, 0, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('TX_DAC_initial_phase', 0, 3, 3, 1 / (LUT_size / 90), 'deg'))
-start_up_params.append(vio_param('TX_IQ_phase_diff', 32767, 6, 3, 1 / (LUT_size / 90), 'deg'))
-start_up_params.append(vio_param('TX_Mult_enable', 1, 9, 1))
-start_up_params.append(vio_param('TX_Mult_gain', 2048, 10, 3))
+start_up_params.append(vio_param('TX_DAC_IQ_phase_diff', 32767, 6, 3, 1 / (LUT_size / 90), 'deg'))
+start_up_params.append(vio_param('TX_DAC_Mult_enable', 1, 9, 1))
+start_up_params.append(vio_param('TX_DAC_Mult_gain', 2048, 10, 3))
 
 start_up_params.append(vio_param('VM_DAC_1_frequency_word', 4096, 13, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('VM_DAC_1_initial_phase', 0, 16, 3, 1 / (LUT_size / 90), 'deg'))
@@ -204,12 +204,17 @@ def parse_cmd(cmd, val, rootGUI=None):
         if curr_param.cmd == 'TX_DAC_initial_phase':
             actual_val = val / (LUT_size*2 / np.pi)
             # print(np.cos(actual_val),np.sin(actual_val))
-            rootGUI.TX_phasemag.set_offsets(np.c_[np.cos(actual_val),np.sin(actual_val)])
+            rootGUI.TX_DAC_phasemag.set_offsets(np.c_[np.cos(actual_val),np.sin(actual_val)])
             rootGUI.canvas_IQ.draw()
-        elif curr_param.cmd == 'VM_DAC_1_initial_phase' or curr_param.cmd == 'VM_DAC_2_initial_phase':
+        elif curr_param.cmd == 'VM_DAC_1_initial_phase':
             actual_val = val / (LUT_size*2 / np.pi)
             # print(np.cos(actual_val),np.sin(actual_val))
-            rootGUI.VM_phasemag.set_offsets(np.c_[np.cos(actual_val),np.sin(actual_val)])
+            rootGUI.VM_DAC_1_phasemag.set_offsets(np.c_[np.cos(actual_val),np.sin(actual_val)])
+            rootGUI.canvas_IQ.draw()
+        elif curr_param.cmd == 'VM_DAC_2_initial_phase':
+            actual_val = val / (LUT_size*2 / np.pi)
+            # print(np.cos(actual_val),np.sin(actual_val))
+            rootGUI.VM_DAC_2_phasemag.set_offsets(np.c_[np.cos(actual_val),np.sin(actual_val)])
             rootGUI.canvas_IQ.draw()
 
 
@@ -543,8 +548,9 @@ class data_GUI:
         self.ax_IQ.patch.set_facecolor((0, 1, 1, 0.0))
         self.unit_circle_IQ = Circle((0, 0), 1, color='blue', alpha=0.2, fill=False, linestyle='--', linewidth=1.5)
         self.ax_IQ.add_patch(self.unit_circle_IQ)
-        self.TX_phasemag = self.ax_IQ.scatter(1,0, label='TX',marker='o')
-        self.VM_phasemag = self.ax_IQ.scatter(1,0, label='VM',marker='*')
+        self.TX_DAC_phasemag = self.ax_IQ.scatter(1,0, label='TX',marker='o')
+        self.VM_DAC_1_phasemag = self.ax_IQ.scatter(1,0, label='VM_1',marker='*')
+        self.VM_DAC_2_phasemag = self.ax_IQ.scatter(1, 0, label='VM_2', marker='*')
         self.ax_IQ.set_xlim(-1.1, 1.1)
         self.ax_IQ.set_ylim(-1.1, 1.1)
         self.ax_IQ.set_xlabel('I',color='red',backgroundcolor=(1,0,0,0.1))
@@ -991,24 +997,34 @@ class data_GUI:
                 else:
                     if task[0] == 'tx_freq' or task[0] == 'TX_DAC_frequency_word':
                         cmd = 'TX_DAC_frequency_word'
-                    elif task[0] == 'vm_freq' or task[0] == 'VM_DAC_frequency_word':
-                        cmd = 'VM_DAC_frequency_word'
+                    elif task[0] == 'vm1_freq' or task[0] == 'VM_DAC_1_DAC_frequency_word':
+                        cmd = 'VM_DAC_1_DAC_frequency_word'
+                    elif task[0] == 'vm2_freq' or task[0] == 'VM_DAC_2_DAC_frequency_word':
+                        cmd = 'VM_DAC_2_DAC_frequency_word'
                     elif task[0] == 'tx_phase' or task[0] == 'TX_DAC_initial_phase':
                         cmd = 'TX_DAC_initial_phase'
-                    elif task[0] == 'vm_phase' or task[0] == 'VM_DAC_initial_phase':
-                        cmd = 'VM_DAC_initial_phase'
-                    elif task[0] == 'tx_phase_diff' or task[0] == 'TX_IQ_phase_diff':
-                        cmd = 'TX_IQ_phase_diff'
-                    elif task[0] == 'vm_phase_diff' or task[0] == 'VM_IQ_phase_diff':
-                        cmd = 'VM_IQ_phase_diff'
-                    elif task[0] == 'tx_mag' or task[0] == 'TX_Mult_gain':
-                        cmd = 'TX_Mult_gain'
-                    elif task[0] == 'vm_mag' or task[0] == 'VM_Mult_gain':
-                        cmd = 'VM_Mult_gain'
-                    elif task[0] == 'tx_mult_en' or task[0] == 'TX_Mult_enable':
-                        cmd = 'TX_Mult_enable'
-                    elif task[0] == 'vm_mult_en' or task[0] == 'VM_Mult_enable':
-                        cmd = 'VM_Mult_enable'
+                    elif task[0] == 'vm1_phase' or task[0] == 'VM_DAC_1_DAC_initial_phase':
+                        cmd = 'VM_DAC_1_DAC_initial_phase'
+                    elif task[0] == 'vm2_phase' or task[0] == 'VM_DAC_2_DAC_initial_phase':
+                        cmd = 'VM_DAC_2_DAC_initial_phase'
+                    elif task[0] == 'tx_phase_diff' or task[0] == 'TX_DAC_IQ_phase_diff':
+                        cmd = 'TX_DAC_IQ_phase_diff'
+                    elif task[0] == 'vm1_phase_diff' or task[0] == 'VM_DAC_1_IQ_phase_diff':
+                        cmd = 'VM_DAC_1_IQ_phase_diff'
+                    elif task[0] == 'vm2_phase_diff' or task[0] == 'VM_DAC_2_IQ_phase_diff':
+                        cmd = 'VM_DAC_2_IQ_phase_diff'
+                    elif task[0] == 'tx_mag' or task[0] == 'TX_DAC_Mult_gain':
+                        cmd = 'TX_DAC_Mult_gain'
+                    elif task[0] == 'vm1_mag' or task[0] == 'VM_DAC_1_Mult_gain':
+                        cmd = 'VM_DAC_1_Mult_gain'
+                    elif task[0] == 'vm2_mag' or task[0] == 'VM_DAC_2_Mult_gain':
+                        cmd = 'VM_DAC_2_Mult_gain'
+                    elif task[0] == 'tx_mult_en' or task[0] == 'TX_DAC_Mult_enable':
+                        cmd = 'TX_DAC_Mult_enable'
+                    elif task[0] == 'vm1_mult_en' or task[0] == 'VM_DAC_1_Mult_enable':
+                        cmd = 'VM_DAC_1_Mult_enable'
+                    elif task[0] == 'vm2_mult_en' or task[0] == 'VM_DAC_2_Mult_enable':
+                        cmd = 'VM_DAC_2_Mult_enable'
                     else:
                         highlight_msg(f'Error: No such parameter!')
                         continue
@@ -1070,26 +1086,36 @@ class data_GUI:
                     if len(params) == 4:
                         if params[0] == 'tx_freq':
                             cmd = 'TX_DAC_frequency_word'
-                        elif params[0] == 'vm_freq':
-                            cmd = 'VM_DAC_frequency_word'
+                        elif params[0] == 'vm1_freq':
+                            cmd = 'VM_DAC_1_DAC_frequency_word'
+                        elif params[0] == 'vm2_freq':
+                            cmd = 'VM_DAC_2_DAC_frequency_word'
                         elif params[0] == 'tx_phase':
                             cmd = 'TX_DAC_initial_phase'
-                        elif params[0] == 'vm_phase':
-                            cmd = 'VM_DAC_initial_phase'
+                        elif params[0] == 'vm1_phase':
+                            cmd = 'VM_DAC_1_DAC_initial_phase'
+                        elif params[0] == 'vm2_phase':
+                            cmd = 'VM_DAC_2_DAC_initial_phase'
                         elif params[0] == 'tx_phase_diff':
                             cmd = 'TX_IQ_phase_diff'
-                        elif params[0] == 'vm_phase_diff':
-                            cmd = 'VM_IQ_phase_diff'
+                        elif params[0] == 'vm1_phase_diff':
+                            cmd = 'VM_DAC_1_IQ_phase_diff'
+                        elif params[0] == 'vm2_phase_diff':
+                            cmd = 'VM_DAC_2_IQ_phase_diff'
                         elif params[0] == 'tx_mag':
                             cmd = 'TX_Mult_gain'
-                        elif params[0] == 'vm_mag':
-                            cmd = 'VM_Mult_gain'
-                        elif params[0] == 'tx_mult_en' or params[0] == 'TX_Mult_enable':
-                            cmd = 'TX_Mult_enable'
-                        elif params[0] == 'vm_mult_en' or params[0] == 'VM_Mult_enable':
-                            cmd = 'VM_Mult_enable'
+                        elif params[0] == 'vm1_mag':
+                            cmd = 'VM_DAC_1_Mult_gain'
+                        elif params[0] == 'vm2_mag':
+                            cmd = 'VM_DAC_2_Mult_gain'
+                        elif params[0] == 'tx_mult_en' or params[0] == 'TX_DAC_Mult_enable':
+                            cmd = 'TX_DAC_Mult_enable'
+                        elif params[0] == 'vm1_mult_en' or params[0] == 'VM_DAC_1_Mult_enable':
+                            cmd = 'VM_DAC_1_Mult_enable'
+                        elif params[0] == 'vm2_mult_en' or params[0] == 'VM_DAC_2_Mult_enable':
+                            cmd = 'VM_DAC_2_Mult_enable'
                     else:
-                        print(highlight_msg(">> Error: please enter tx/vm_freq/phase/mag"))
+                        print(highlight_msg(">> Error: please enter tx/vm1_freq/vm2_freq/phase/mag"))
                         continue
                     start_val = int(params[1])
                     step_val = int(params[2])
