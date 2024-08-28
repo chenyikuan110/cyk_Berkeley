@@ -77,7 +77,7 @@ fund_tone = fsample_DAC / 4 / LUT_size
 
 fsample_ADC = 80E6
 
-ADC_clip_threshold = 65535
+ADC_clip_threshold = 8192
 
 Downsample_factor = 8
 
@@ -1019,6 +1019,11 @@ class data_GUI:
                     elif task[1] != 'all':
                         # set parameter manually
                         curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
+                        try:
+                            int_val = int(task[1])
+                        except ValueError:
+                            print(f'Invalid input {task[1]}')
+                            continue
                         if 'phase' or 'frequency' in curr_param.cmd:
                             val_new = int(np.floor(int(task[1]) / curr_param.conv_factor))
                         else:
