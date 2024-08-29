@@ -38,6 +38,10 @@ import matplotlib.pyplot as plt
 # plt.figure()
 # plt.plot(array)
 # plt.show()
+array = []
+for i in range(0,32768):
+    array.append(i & 0xC000 + ((i & 0x1FFF) << 1))
+    print(i, '{:0{width}b}'.format(i, width=16))
 
-for i in range(32767,32768):
-    print(i, '{:0{width}b}'.format(i, width=17))
+plt.plot(array)
+plt.show()

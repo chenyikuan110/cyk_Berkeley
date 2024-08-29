@@ -87,19 +87,22 @@ start_up_params.append(vio_param('TX_DAC_frequency_word', 4096, 0, 3, fund_tone,
 start_up_params.append(vio_param('TX_DAC_initial_phase', 0, 3, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_DAC_IQ_phase_diff', 32767, 6, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('TX_DAC_Mult_enable', 1, 9, 1))
-start_up_params.append(vio_param('TX_DAC_Mult_gain', 2048, 10, 3))
+start_up_params.append(vio_param('TX_DAC_Mult_gain', 1024, 10, 3))
 
 start_up_params.append(vio_param('VM_DAC_1_frequency_word', 4096, 13, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('VM_DAC_1_initial_phase', 0, 16, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_DAC_1_IQ_phase_diff', 32767, 19, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_DAC_1_Mult_enable', 1, 22, 1))
-start_up_params.append(vio_param('VM_DAC_1_Mult_gain', 200, 23, 3))
+start_up_params.append(vio_param('VM_DAC_1_Mult_gain', 50, 23, 3))
+
+# start_up_params.append(vio_param('ADC_clip_threshold', 65535, 26, 2))
+# start_up_params.append(vio_param('Downsample_factor', 8, 28, 1))
 
 start_up_params.append(vio_param('VM_DAC_2_frequency_word', 4096, 26, 3, fund_tone, 'Hz'))
 start_up_params.append(vio_param('VM_DAC_2_initial_phase', 0, 29, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_DAC_2_IQ_phase_diff', 32767, 32, 3, 1 / (LUT_size / 90), 'deg'))
 start_up_params.append(vio_param('VM_DAC_2_Mult_enable', 1, 35, 1))
-start_up_params.append(vio_param('VM_DAC_2_Mult_gain', 200, 36, 3))
+start_up_params.append(vio_param('VM_DAC_2_Mult_gain', 50, 36, 3))
 
 start_up_params.append(vio_param('ADC_clip_threshold', 65535, 39, 2))
 start_up_params.append(vio_param('Downsample_factor', 8, 41, 1))
@@ -990,23 +993,23 @@ class data_GUI:
                             time.sleep(0.1)
                         elif task[0] == 'write':
                             cmd, addr, val = get_all()
-                            curr_val = np.array([params.default_val for params in start_up_params])
+                            curr_val = np.array([params.curr_val for params in start_up_params])
                             conv_factor = np.array([params.conv_factor for params in start_up_params])
                             unit = np.array([params.unit for params in start_up_params])
                             time.sleep(0.1)
                 else:
                     if task[0] == 'tx_freq' or task[0] == 'TX_DAC_frequency_word':
                         cmd = 'TX_DAC_frequency_word'
-                    elif task[0] == 'vm1_freq' or task[0] == 'VM_DAC_1_DAC_frequency_word':
-                        cmd = 'VM_DAC_1_DAC_frequency_word'
-                    elif task[0] == 'vm2_freq' or task[0] == 'VM_DAC_2_DAC_frequency_word':
-                        cmd = 'VM_DAC_2_DAC_frequency_word'
+                    elif task[0] == 'vm1_freq' or task[0] == 'VM_DAC_1_frequency_word':
+                        cmd = 'VM_DAC_1_frequency_word'
+                    elif task[0] == 'vm2_freq' or task[0] == 'VM_DAC_2_frequency_word':
+                        cmd = 'VM_DAC_2_frequency_word'
                     elif task[0] == 'tx_phase' or task[0] == 'TX_DAC_initial_phase':
                         cmd = 'TX_DAC_initial_phase'
-                    elif task[0] == 'vm1_phase' or task[0] == 'VM_DAC_1_DAC_initial_phase':
-                        cmd = 'VM_DAC_1_DAC_initial_phase'
-                    elif task[0] == 'vm2_phase' or task[0] == 'VM_DAC_2_DAC_initial_phase':
-                        cmd = 'VM_DAC_2_DAC_initial_phase'
+                    elif task[0] == 'vm1_phase' or task[0] == 'VM_DAC_1_initial_phase':
+                        cmd = 'VM_DAC_1_initial_phase'
+                    elif task[0] == 'vm2_phase' or task[0] == 'VM_DAC_2_initial_phase':
+                        cmd = 'VM_DAC_2_initial_phase'
                     elif task[0] == 'tx_phase_diff' or task[0] == 'TX_DAC_IQ_phase_diff':
                         cmd = 'TX_DAC_IQ_phase_diff'
                     elif task[0] == 'vm1_phase_diff' or task[0] == 'VM_DAC_1_IQ_phase_diff':
@@ -1043,13 +1046,20 @@ class data_GUI:
                     elif task[1] != 'all':
                         # set parameter manually
                         curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)
-                        try:
-                            int_val = int(task[1])
-                        except ValueError:
-                            print(f'Invalid input {task[1]}')
-                            continue
                         if 'phase' or 'frequency' in curr_param.cmd:
-                            val_new = int(np.floor(int(task[1]) / curr_param.conv_factor))
+                            try:
+                                int_val = float(task[1])
+                            except ValueError:
+                                print(f'Invalid input {task[1]}, must be a number')
+                                continue
+                        else:
+                            try:
+                                int_val = int(task[1])
+                            except ValueError:
+                                print(f'Invalid input {task[1]}, must be integer')
+                                continue
+                        if 'phase' or 'frequency' in curr_param.cmd:
+                            val_new = int(np.floor(float(task[1]) / curr_param.conv_factor))
                         else:
                             val_new = int(task[1])
                         addr, val, ignore = parse_cmd(cmd, val_new,rootGUI=self)
@@ -1087,15 +1097,15 @@ class data_GUI:
                         if params[0] == 'tx_freq':
                             cmd = 'TX_DAC_frequency_word'
                         elif params[0] == 'vm1_freq':
-                            cmd = 'VM_DAC_1_DAC_frequency_word'
+                            cmd = 'VM_DAC_1_frequency_word'
                         elif params[0] == 'vm2_freq':
-                            cmd = 'VM_DAC_2_DAC_frequency_word'
+                            cmd = 'VM_DAC_2_frequency_word'
                         elif params[0] == 'tx_phase':
                             cmd = 'TX_DAC_initial_phase'
                         elif params[0] == 'vm1_phase':
-                            cmd = 'VM_DAC_1_DAC_initial_phase'
+                            cmd = 'VM_DAC_1_initial_phase'
                         elif params[0] == 'vm2_phase':
-                            cmd = 'VM_DAC_2_DAC_initial_phase'
+                            cmd = 'VM_DAC_2_initial_phase'
                         elif params[0] == 'tx_phase_diff':
                             cmd = 'TX_IQ_phase_diff'
                         elif params[0] == 'vm1_phase_diff':
@@ -1117,8 +1127,12 @@ class data_GUI:
                     else:
                         print(highlight_msg(">> Error: please enter tx/vm1_freq/vm2_freq/phase/mag"))
                         continue
-                    start_val = int(params[1])
-                    step_val = int(params[2])
+                    if 'phase' or 'frequency' in curr_param.cmd:
+                        start_val = float(params[1])
+                        step_val = float(params[2])
+                    else:
+                        start_val = int(params[1])
+                        step_val = int(params[2])
                     num_steps = int(params[3])
 
                     curr_param = next((obj for obj in start_up_params if obj.cmd == cmd), None)

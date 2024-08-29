@@ -14,8 +14,8 @@ import itertools
 my_dir = ""
 
 # Load DUT data
-my_subdir = "20240823_VM_TX"
-csv_format = 'TraceCan*.csv'
+my_subdir = "20240828_Multitone"
+csv_format = 'Trace*.csv'
 # csv_format = '*'
 sort_regex = r'_(\d+(?:\.\d+)?)'
 normalize = False
@@ -106,7 +106,7 @@ for i,file in enumerate(list(csv_files)):
     rec_pw = tmp[1,:]
     print(freq_rec_pw)
     # freq_rec_pw = (freq_rec_pw+125e9)/1e9
-    freq_rec_pw = (freq_rec_pw)/1e9
+    # freq_rec_pw = (freq_rec_pw)/1e9
 
     gain = rec_pw # 3 dB due to the output balun
     gain = np.array(gain)
@@ -120,11 +120,11 @@ for i,file in enumerate(list(csv_files)):
         curr_max = line_max
         curr_argmax = np.argmax(smoothed_gain[window_size:len(freq_rec_pw)-window_size])+window_size
 
-    label_name = ' '.join(file_name_parse[1:-2])
+    label_name = ' '.join(file_name_parse[0:-1])
     offset = -line_max if normalize else 0 # 0 if label_name == 'IQ' else 10
 
     if marker_on:
-        ax1.plot(freq_rec_pw, gain + offset, next(line_cycle),label=f'{label_name}',marker='D', linewidth=2, alpha=1) # non IEEE
+        ax1.plot(freq_rec_pw, gain + offset, next(line_cycle),label=f'{label_name}', linewidth=2, alpha=1) # non IEEE
     else:
         ax1.plot(freq_rec_pw, gain + offset, next(line_cycle),label=f'{label_name}',linewidth=2, alpha=1) # non IEEE
     # ax1.plot(freq_rec_pw, gain, label=f'{label_name}', alpha=1)  # IEEE
@@ -149,7 +149,7 @@ print("curr max is ",curr_max)
 xaxis_range = [int(freq_rec_pw[0]), int(freq_rec_pw[-1])]
 spacing = np.floor(xaxis_range[1]-xaxis_range[0])/5
 # xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, spacing)  # Ticks with a step of 20
-xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, 1)  
+xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, spacing)
 print("xticks is ",xticks, "spacing is ",spacing)
 ax1.set_xticks(xticks)
 print(gain[~np.isnan(gain)])
