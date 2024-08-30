@@ -1,7 +1,7 @@
 import numpy as np
 import scienceplots
 import matplotlib.pyplot as plt
-import skrf as rf
+# import skrf as rf
 from scipy.signal import triang, hamming, hanning, boxcar, windows
 from scipy.constants import c
 from pylab import *

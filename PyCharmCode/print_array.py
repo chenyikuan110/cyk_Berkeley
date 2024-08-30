@@ -39,9 +39,30 @@ import matplotlib.pyplot as plt
 # plt.plot(array)
 # plt.show()
 array = []
-for i in range(0,32768):
+offset = 42
+for i in range(0,20):
     array.append(i & 0xC000 + ((i & 0x1FFF) << 1))
-    print(i, '{:0{width}b}'.format(i, width=16))
+    # print(i, '{:0{width}b}'.format(i, width=16))
+    # print(f'8\'d{i*2+offset}: begin VM_gain_seq_{i}_reg_1 <= val_to_write; end')
+    # print(f'8\'d{i*2+offset+1}: begin VM_gain_seq_{i}_reg_0 <= val_to_write; end')
+    # print(f'VM_gain_seq_{i}_reg_1 <= 8\'hFF;')
+    # print(f'VM_gain_seq_{i}_reg_0 <= 8\'hFF;')
+    # print(f'reg [7:0] VM_gain_seq_{i}_reg_1, VM_gain_seq_{i}_reg_0;')
+    # # print(f'assign VM_gain_seq[{i}] =','{',f'VM_gain_seq_{i}_reg_1, VM_gain_seq_{i}_reg_0','};')
+    # print(f'assign VM_gain_seq[{i}] =', '{', f'VM_gain_seq_{i}_reg_1, VM_gain_seq_{i}_reg_0', '};')
 
-plt.plot(array)
-plt.show()
+print('')
+offset = offset + i*2 + 2
+for i in range(0,20):
+    # array.append(i & 0xC000 + ((i & 0x1FFF) << 1))
+    # print(i, '{:0{width}b}'.format(i, width=16))
+    # print(f'8\'d{i*2+offset}: begin VM_phase_seq_{i}_reg_1 <= val_to_write; end')
+    # print(f'8\'d{i*2+offset+1}: begin VM_phase_seq_{i}_reg_0 <= val_to_write; end')
+    # print(f'VM_phase_seq_{i}_reg_1 <= 8\'h00;')
+    # print(f'VM_phase_seq_{i}_reg_0 <= 8\'h00;')
+    # print(f'reg [7:0] VM_phase_seq_{i}_reg_1, VM_phase_seq_{i}_reg_0;')
+    # print(f'assign VM_phase_seq[{i}] =', '{', f'VM_phase_seq_{i}_reg_1, VM_phase_seq_{i}_reg_0', '};')
+    print(f'{i},{0xFFFF},{0}')
+
+# plt.plot(array)
+# plt.show()

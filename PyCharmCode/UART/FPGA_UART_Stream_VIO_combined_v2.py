@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import time
+import csv
 import threading
 import tkinter as tk
 import ctypes
@@ -34,7 +35,7 @@ class vio_param:
 
 
 # Windows
-emulation_on = False
+emulation_on = True
 if os.name == 'nt':
     ser = serial.Serial()
     ser.baudrate = 230400  # 115200
@@ -61,7 +62,7 @@ scale = 1 << 15
 decimation = 1
 
 # GUI
-w_size = 900
+w_size = 1300
 h_size = 800
 
 # Prepare serial read parameters
@@ -107,6 +108,19 @@ start_up_params.append(vio_param('VM_DAC_2_Mult_gain', 50, 36, 3))
 start_up_params.append(vio_param('ADC_clip_threshold', 65535, 39, 2))
 start_up_params.append(vio_param('Downsample_factor', 8, 41, 1))
 
+offset = 42
+for index in range(0,20):
+    start_up_params.append(vio_param(f'VM_gain_seq_{index}', 0xFFFF, offset+index*2, 2))
+
+offset = offset + index*2 + 2
+for index in range(0,20):
+    start_up_params.append(vio_param(f'VM_phase_seq_{index}', 0x00, offset+index*2, 2))
+
+offset = offset + 1
+start_up_params.append(vio_param('VM_DAC_VectorMod_Mult_enable', 1, offset, 1))
+
+vm_csv_path = './VM_gain_phase.csv'
+
 # dict_cmd = {
 #     'TX_DAC_frequency_word': [0, 2, 6]
 #     , 'TX_DAC_initial_phase': [2, 2, 0]
@@ -128,7 +142,6 @@ dt = dt.newbyteorder('>')
 # input("Open a serial program in another terminal, then hit Enter")
 
 # input("Open a serial program in another terminal, then hit Enter")
-
 
 # Helper func
 # for emulation
@@ -219,9 +232,47 @@ def parse_cmd(cmd, val, rootGUI=None):
             # print(np.cos(actual_val),np.sin(actual_val))
             rootGUI.VM_DAC_2_phasemag.set_offsets(np.c_[np.cos(actual_val),np.sin(actual_val)])
             rootGUI.canvas_IQ.draw()
-
-
     return address, int_to_bytes(val, width), int_to_bytes(default_val, width)
+
+
+# for the gain array
+def csv_to_gain_phase_array(path, rootGUI=None):
+    try:
+        # gain
+        gain = []
+        phase = []
+        with open(path) as file_obj:
+            reader_obj = csv.reader(file_obj)
+            for row in reader_obj:
+                if row[0] == 'Index':
+                    continue
+                curr_param = next((obj for obj in start_up_params if obj.cmd == f'VM_gain_seq_{row[0]}'), None)
+                addr, val, ignore = parse_cmd(curr_param.cmd, int(row[1]))
+                send_to_dut(ser, addr, val, print_msg=True)
+                time.sleep(0.01)
+                gain.append(int(row[1]))
+                # print(f'Updated VM_gain_seq_{row[0]} factor to {int(row[1])}')
+
+        # phase
+        with open(path) as file_obj:
+            reader_obj = csv.reader(file_obj)
+            for row in reader_obj:
+                if row[0] == 'Index':
+                    continue
+                curr_param = next((obj for obj in start_up_params if obj.cmd == f'VM_phase_seq_{row[0]}'), None)
+                addr, val, ignore = parse_cmd(curr_param.cmd, int(row[2]))
+                send_to_dut(ser, addr, val, print_msg=True)
+                time.sleep(0.01)
+                phase.append(int(row[2]))
+                # print(f'Updated VM_phase_seq_{row[0]} factor to {int(row[2])}')
+
+        if rootGUI:
+            rootGUI.VM_gain.set_ydata(np.array(gain))
+            rootGUI.VM_phase.set_ydata(np.array(phase))
+            rootGUI.canvas_VM.draw()
+
+    except FileNotFoundError:
+        print('Cannot find csv!')
 
 
 # reset value
@@ -253,13 +304,14 @@ def get_all():
     return cmds, np.concatenate(addr), np.concatenate(val)
 
 # send msg
-def send_to_dut(port, addr, val):
+def send_to_dut(port, addr, val,print_msg=True):
     global emulation_on
 
     for i in reversed(range(len(addr))):
         msg = '[sending] ' + str(val[i]) + ' to address ' \
               + str(addr[i]) + ': ' + str(49) + ' ' + str(addr[i]) + ' ' + str(val[i])
-        print(highlight_msg(msg))
+        if print_msg:
+            print(highlight_msg(msg))
         if not emulation_on:
             port.write(bytearray([49, addr[i], val[i]]))
         time.sleep(0.01)
@@ -282,6 +334,7 @@ class data_GUI:
         global aggregate_size
         global scale_FS
         global scale
+        global vm_csv_path
 
         # this flag kills both threads
         self.quit_flag = False
@@ -295,6 +348,8 @@ class data_GUI:
         self.Downsample_enable = tk.BooleanVar(value=False)
         self.ADC_clip_threshold = ADC_clip_threshold
         self.Downsample_factor = Downsample_factor
+
+        self.vm_csv_path = vm_csv_path
 
         # Internalize
         self.root = root
@@ -421,6 +476,9 @@ class data_GUI:
         self.IQ_subframe = tk.Frame(self.Option_Frame)
         self.IQ_subframe.grid(row=1, column=1, padx=5, sticky='news')
 
+        self.VM_subframe = tk.Frame(self.Option_Frame)
+        self.VM_subframe.grid(row=1, column=2, padx=5, sticky='news')
+
         # Unit
         self.freq_plot_button = ttk.Checkbutton(self.Option_subframe, text="Plot Frequency (Hz)",
                                                 variable=self.plot_frequency,
@@ -441,6 +499,11 @@ class data_GUI:
                                                         variable=self.Downsample_enable,
                                                         command=self.toggle_Downsample_enable)
         self.Downsample_enable_button.grid(row=0, column=3, sticky='e', padx=10, pady=5)
+
+        # Update VM values from CSV
+        self.Update_VM_button = ttk.Button(self.Option_subframe, text="Update VM Gain Phase",
+                                                    command=lambda: csv_to_gain_phase_array(self.vm_csv_path,self))
+        self.Update_VM_button.grid(row=1, column=4, sticky='w', padx=10, pady=5)
 
 
         # Threshold
@@ -574,7 +637,42 @@ class data_GUI:
         self.fig_IQ.subplots_adjust(left=0.2, right=0.9, top=0.9, bottom=0.2)
         self.canvas_IQ.draw()
         self.IQ_subframe.update_idletasks()
-        self.IQ_subframe.grid_propagate(False) 
+        self.IQ_subframe.grid_propagate(False)
+
+        # ---- VM-plot ----     
+        self.fig_VM, self.ax_VM_gain = plt.subplots(figsize=(4.5, 2.5))
+        self.fig_VM.patch.set_facecolor((0, 1, 1, 0.05))
+        self.ax_VM_gain.patch.set_facecolor((0, 1, 1, 0.0))
+        self.VM_gain, = self.ax_VM_gain.plot(np.linspace(65536, 65536, 20), label='VM_gain',color='orange')
+
+        self.ax_VM_phase = self.ax_VM_gain.twinx()
+        self.VM_phase, = self.ax_VM_phase.plot(np.linspace(0, 0, 20), label='VM_Phase',color='blue')
+
+        self.ax_VM_gain.set_xlim(0, 19)
+        self.ax_VM_gain.set_ylim(0, 66000)
+        self.ax_VM_phase.set_ylim(0, 360)
+        self.ax_VM_gain.set_xlabel('Index', color='red', backgroundcolor=(1, 0, 0, 0.1))
+        self.ax_VM_gain.set_ylabel('Gain', color='orange')
+        self.ax_VM_phase.set_ylabel('Phase', color='blue')
+
+        handles, labels = self.ax_VM_gain.get_legend_handles_labels()
+        handles2, labels2 = self.ax_VM_phase.get_legend_handles_labels()
+        handles += handles2
+        labels += labels2
+
+        self.ax_VM_gain.legend(handles, labels,loc='lower center',fontsize='small',facecolor=(0, 0, 1, 0.1), framealpha=0.1)
+        self.canvas_VM = FigureCanvasTkAgg(self.fig_VM, master=self.VM_subframe)
+        self.canvas_VM_widget = self.canvas_VM.get_tk_widget()
+        self.canvas_VM_widget.grid(row=0, column=0, padx=0, pady=3)
+
+        # self.fig_VM.set_size
+        # self.fig_VM.set_size_inches(1,1, forward=True)
+        # self.canvas_VM_widget.place(relx=0.5, rely=0.5, anchor='center')
+        self.fig_VM.tight_layout(pad=1.0)
+        self.fig_VM.subplots_adjust(left=0.2, right=0.85, top=0.95, bottom=0.2)
+        self.canvas_VM.draw()
+        self.VM_subframe.update_idletasks()
+        self.VM_subframe.grid_propagate(False)
 
         # Configure bottom frame grid layout
         # self.IQ_subframe.grid_rowconfigure(0, weight=0)
@@ -982,7 +1080,7 @@ class data_GUI:
             task = task.split()
             conv_factor = 1
             unit = ''
-            if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q', 'bits','win','w'])) or len(task) == 2:
+            if (len(task) == 1 and not (task[0] in ['sweep', 'sweep_m', 'q', 'bits','win','w','vm'])) or len(task) == 2:
                 if task[0] == 'reset' or task[0] == 'write':
                     if len(task) == 2:
                         if  task[0] == 'reset' and task[1] == 'all':
@@ -1168,6 +1266,9 @@ class data_GUI:
                 elif task[0] == 'q':
                     self.quit_flag = True
                     self.window_show = False
+
+                elif task[0] == 'vm':
+                    csv_to_gain_phase_array(self.vm_csv_path, rootGUI=self)
 
                 elif task[0] == 'bits':
                     plot_individual_bits = not plot_individual_bits
