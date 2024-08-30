@@ -66,3 +66,6 @@ for i in range(0,20):
 
 # plt.plot(array)
 # plt.show()
+
+for i in range (0,20):
+    print(np.floor(np.random.rand()*32768))

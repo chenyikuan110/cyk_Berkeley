@@ -14,7 +14,7 @@ import itertools
 my_dir = ""
 
 # Load DUT data
-my_subdir = "20240828_Multitone"
+my_subdir = "20240829_Chirp_Span4MHz_sweep44ms"
 csv_format = 'Trace*.csv'
 # csv_format = '*'
 sort_regex = r'_(\d+(?:\.\d+)?)'

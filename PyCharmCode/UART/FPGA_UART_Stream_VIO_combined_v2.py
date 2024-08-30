@@ -35,7 +35,7 @@ class vio_param:
 
 
 # Windows
-emulation_on = True
+emulation_on = False
 if os.name == 'nt':
     ser = serial.Serial()
     ser.baudrate = 230400  # 115200
@@ -116,7 +116,7 @@ offset = offset + index*2 + 2
 for index in range(0,20):
     start_up_params.append(vio_param(f'VM_phase_seq_{index}', 0x00, offset+index*2, 2))
 
-offset = offset + 1
+offset = offset + index*2 + 2
 start_up_params.append(vio_param('VM_DAC_VectorMod_Mult_enable', 1, offset, 1))
 
 vm_csv_path = './VM_gain_phase.csv'
@@ -1126,6 +1126,8 @@ class data_GUI:
                         cmd = 'VM_DAC_1_Mult_enable'
                     elif task[0] == 'vm2_mult_en' or task[0] == 'VM_DAC_2_Mult_enable':
                         cmd = 'VM_DAC_2_Mult_enable'
+                    elif task[0] == 'vm_en' or task[0] == 'VM_DAC_VectorMod_Mult_enable':
+                        cmd = 'VM_DAC_VectorMod_Mult_enable'
                     else:
                         highlight_msg(f'Error: No such parameter!')
                         continue
