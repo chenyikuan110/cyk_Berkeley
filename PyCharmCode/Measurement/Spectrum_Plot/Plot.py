@@ -14,14 +14,15 @@ import itertools
 my_dir = ""
 
 # Load DUT data
-my_subdir = "20240829_Chirp_Span4MHz_sweep44ms"
+my_subdir = "20240830_FMCW/compare"
 csv_format = 'Trace*.csv'
 # csv_format = '*'
 sort_regex = r'_(\d+(?:\.\d+)?)'
 normalize = False
+my_xlabel = f'Target distance [m]'
 # plot_name = 'Received Power\n Normalized to Leakage [dB]'
-# plot_name = 'Measured Power [dBm]'
-plot_name = 'Cancellation [dB]'
+plot_name = 'Measured Power [dBm]'
+# plot_name = 'Cancellation [dB]'
 font_downscale = 2
 legend_loc = 'upper center'
 linewidth=2
@@ -37,6 +38,9 @@ freq_max = 150
 
 line_styles = ['-','-','-']
 line_cycle = itertools.cycle(line_styles)
+
+color_styles = ['black','red','blue']
+color_cycle = itertools.cycle(color_styles)
 
 def read_data_as_matrix(file_path):
     # Read the file and locate the "DATA" line
@@ -107,6 +111,7 @@ for i,file in enumerate(list(csv_files)):
     print(freq_rec_pw)
     # freq_rec_pw = (freq_rec_pw+125e9)/1e9
     # freq_rec_pw = (freq_rec_pw)/1e9
+    freq_rec_pw = (freq_rec_pw - 10e6) / 10e3*0.015
 
     gain = rec_pw # 3 dB due to the output balun
     gain = np.array(gain)
@@ -124,9 +129,9 @@ for i,file in enumerate(list(csv_files)):
     offset = -line_max if normalize else 0 # 0 if label_name == 'IQ' else 10
 
     if marker_on:
-        ax1.plot(freq_rec_pw, gain + offset, next(line_cycle),label=f'{label_name}', linewidth=2, alpha=1) # non IEEE
+        ax1.plot(freq_rec_pw, gain + offset, next(line_cycle),label=f'{label_name}', color=next(color_cycle), linewidth=linewidth, alpha=1) # non IEEE
     else:
-        ax1.plot(freq_rec_pw, gain + offset, next(line_cycle),label=f'{label_name}',linewidth=2, alpha=1) # non IEEE
+        ax1.plot(freq_rec_pw, gain + offset, next(line_cycle),label=f'{label_name}',color=next(color_cycle),linewidth=linewidth, alpha=1) # non IEEE
     # ax1.plot(freq_rec_pw, gain, label=f'{label_name}', alpha=1)  # IEEE
 
 
@@ -140,7 +145,7 @@ for i,file in enumerate(list(csv_files)):
 
 # ax1.axhline(y=curr_max, color='r', linestyle='--')
 ax1.tick_params(labelsize = 28*2)
-ax1.set_xlabel('Freq [GHz]',fontsize=20*2)
+ax1.set_xlabel(my_xlabel,fontsize=20*2)
 ax1.set_ylabel(plot_name,fontsize=20*2)
 ax1.grid(True,linestyle='--', dashes=(5, 10))
 ax1.legend(loc=legend_loc, fontsize=14*2*4/(i+1)/font_downscale, facecolor='white', edgecolor='black')
@@ -156,7 +161,7 @@ print(gain[~np.isnan(gain)])
 print(np.min(gain[~np.isnan(gain)]))
 print(curr_max)
 yaxis_range = [np.min([-0, np.min(gain[~np.isnan(gain)])])-10+offset, np.max([-50,curr_max])+5+offset]
-
+yaxis_range = yaxis_range-(np.min(gain[~np.isnan(gain)]) % 10) + 10
 yticks = np.arange(yaxis_range[0]+10, yaxis_range[1]-0, 10)  # Ticks with a step of 20
 ax1.set_yticks(yticks)
 # ax1.set_yticklabels([str(tick) for tick in yticks])

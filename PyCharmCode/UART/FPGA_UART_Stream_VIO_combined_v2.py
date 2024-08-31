@@ -110,11 +110,11 @@ start_up_params.append(vio_param('Downsample_factor', 8, 41, 1))
 
 offset = 42
 for index in range(0,20):
-    start_up_params.append(vio_param(f'VM_gain_seq_{index}', 0xFFFF, offset+index*2, 2))
+    start_up_params.append(vio_param(f'VM_gain_seq_{index}', 0x7FFF, offset+index*2, 2))
 
 offset = offset + index*2 + 2
 for index in range(0,20):
-    start_up_params.append(vio_param(f'VM_phase_seq_{index}', 0x00, offset+index*2, 2))
+    start_up_params.append(vio_param(f'VM_phase_seq_{index}', 0x00, offset+index*2, 2, 1 / (LUT_size / 180),'deg'))
 
 offset = offset + index*2 + 2
 start_up_params.append(vio_param('VM_DAC_VectorMod_Mult_enable', 1, offset, 1))
@@ -260,7 +260,8 @@ def csv_to_gain_phase_array(path, rootGUI=None):
                 if row[0] == 'Index':
                     continue
                 curr_param = next((obj for obj in start_up_params if obj.cmd == f'VM_phase_seq_{row[0]}'), None)
-                addr, val, ignore = parse_cmd(curr_param.cmd, int(row[2]))
+                value = int(np.floor(float(row[2]) / curr_param.conv_factor))
+                addr, val, ignore = parse_cmd(curr_param.cmd, value)
                 send_to_dut(ser, addr, val, print_msg=True)
                 time.sleep(0.01)
                 phase.append(int(row[2]))
