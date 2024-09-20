@@ -191,26 +191,37 @@ plt.style.use(['science','no-latex'])
 # plt.axis([7,8,-40 ,-20])
 # plt.show()
 
-Tchirp = 100E-6
-fsample = 100E6
-fbeat = 10000
-tstep = 1/fsample
-t = np.linspace(0, Tchirp*5, int(Tchirp*5/tstep))
-s = np.cos(fbeat*(t % Tchirp))
-sf = 10*np.log10(np.fft.fft(s))
-freq = np.linspace(0,len(t),len(t))
-# fig = plt.subplots(1,2)
-plt.figure()
-plt.subplot(2,1,1)
-plt.plot(t, s, label='beat tone')
-plt.xlabel('Time (s)')
-plt.title("Non-integer period signal")
+# Tchirp = 100E-6
+# fsample = 100E6
+# fbeat = 10000
+# tstep = 1/fsample
+# t = np.linspace(0, Tchirp*5, int(Tchirp*5/tstep))
+# s = np.cos(fbeat*(t % Tchirp))
+# sf = 10*np.log10(np.fft.fft(s))
+# freq = np.linspace(0,len(t),len(t))
+# # fig = plt.subplots(1,2)
+# plt.figure()
+# plt.subplot(2,1,1)
+# plt.plot(t, s, label='beat tone')
+# plt.xlabel('Time (s)')
+# plt.title("Non-integer period signal")
 
-plt.subplot(2,1,2)
-plt.plot(freq[0:20], sf[0:20], label='spectrum')
-plt.xlabel('Frequency Index')
+# plt.subplot(2,1,2)
+# plt.plot(freq[0:20], sf[0:20], label='spectrum')
+# plt.xlabel('Frequency Index')
 
-plt.title("FFT for non-integer period signal")
-plt.rcParams['axes.unicode_minus'] = False
-plt.tight_layout()
+# plt.title("FFT for non-integer period signal")
+# plt.rcParams['axes.unicode_minus'] = False
+# plt.tight_layout()
+# plt.show()
+
+# Package Sparams
+package_M1_LL = rf.Network('./Measurement/Spectrum_Plot/Yikuan_V2/m1_ll.s2p', f_unit='GHz')
+package_M1_LL.plot_s_db(m=0,n=0,label='S11 ',linewidth=2)
+package_M1_LL.plot_s_db(m=1,n=0,label='S21',linewidth=2)
+plt.ylabel('S-parameters',fontsize=40)
+plt.xlabel('Freq (GHz)',fontsize=40)
+plt.legend(loc='lower left',fontsize=40)
+plt.title('M1 4mm T-line',fontsize=40)
+plt.tick_params(axis='both', which='major', labelsize=40)  
 plt.show()
