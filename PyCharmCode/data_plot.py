@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import skrf as rf
 import csv
 
+
 # LNA
 freq = np.linspace(135, 147, 13)
 A=[5.12,5.32,5.5,5.72,5.8,6.10,6.20,6.5,6.75,6.8,7.15,7.01,7.24]
@@ -68,46 +69,56 @@ plt.style.use(['science','no-latex'])
 
 # Antenna S11
 # antenna = rf.Network('test.s34p', f_unit='GHz')
-# antenna.plot_s_db(m=31,n=31,label='Full transition structure ')
-# antenna.plot_s_db(m=32,n=32,label='Antenna matching only')
-# plt.ylabel('S-parameters')
-# plt.title('RF transition and antenna matching simulation')
+
+# plt.plot(freq1, peakgain_list, label='Peak Gain',linewidth=5,color='black',marker='^',markersize=10)
+# plt.plot(freq2, peakrealizedgain_list, label='Peak Realized Gain',linewidth=5,color='red',marker='s',markersize=10)
+
+# antenna.plot_s_db(m=31,n=31,label='Full transition structure ',linewidth=5,color='black')
+# antenna.plot_s_db(m=32,n=32,label='Antenna matching only',linewidth=5,color='red')
+# plt.ylabel('Simulated S-parameters [dB]',fontsize=45)
+# plt.tick_params(labelsize = 28*2)
+# plt.xlabel('Frequency [GHz]',fontsize=45)
+# plt.grid(True,linestyle='--', dashes=(5, 10))
+# plt.legend(loc='lower center',fontsize=50,bbox_to_anchor=(0.4, 0.15))
+# # plt.title('RF transition and antenna matching simulation')
 # plt.show()
 
 # Antenna Gain
-# csv_name = 'Sim_results/peakgain.csv'
-# peakgain = open(csv_name)
-# obj_peakgain = csv.reader(peakgain)
-# freq1 = []
-# peakgain_list = []
-# for i,row in enumerate(list(obj_peakgain)):
-#     if i == 0:
-#         continue
-#     # print(row)
-#     freq1.append(float(row[0]))
-#     peakgain_list.append(float(row[1]))
-#
-# csv_name = 'Sim_results/peakrealizedgain.csv'
-# peakrealizedgain = open(csv_name)
-# obj_peakrealizedgain = csv.reader(peakrealizedgain)
-# freq2 = []
-# peakrealizedgain_list = []
-# for i,row in enumerate(list(obj_peakrealizedgain)):
-#     if i == 0:
-#         continue
-#     # print(row)
-#     freq2.append(float(row[0]))
-#     peakrealizedgain_list.append(float(row[1]))
-#
-# plt.figure()
-# plt.plot(freq1, peakgain_list, label='Peak Gain')
-# plt.plot(freq2, peakrealizedgain_list, label='Peak Realized Gain')
-# plt.title("Antenna Gain")
-# plt.legend(loc='lower center')
-# plt.xlabel('Frequency(GHz)')
-# plt.ylabel('Voltage Gain (dB)')
-# # plt.axis([134,148,0 ,20])
-# plt.show()
+csv_name = 'Sim_results/peakgain.csv'
+peakgain = open(csv_name)
+obj_peakgain = csv.reader(peakgain)
+freq1 = []
+peakgain_list = []
+for i,row in enumerate(list(obj_peakgain)):
+    if i == 0:
+        continue
+    # print(row)
+    freq1.append(float(row[0]))
+    peakgain_list.append(float(row[1]))
+
+csv_name = 'Sim_results/peakrealizedgain.csv'
+peakrealizedgain = open(csv_name)
+obj_peakrealizedgain = csv.reader(peakrealizedgain)
+freq2 = []
+peakrealizedgain_list = []
+for i,row in enumerate(list(obj_peakrealizedgain)):
+    if i == 0:
+        continue
+    # print(row)
+    freq2.append(float(row[0]))
+    peakrealizedgain_list.append(float(row[1]))
+
+plt.figure()
+plt.tick_params(labelsize = 28*2)
+plt.plot(freq1, peakgain_list, label='Peak Gain',linewidth=5,color='black',marker='^',markersize=10)
+plt.plot(freq2, peakrealizedgain_list, label='Peak Realized Gain',linewidth=5,color='red',marker='s',markersize=10)
+plt.grid(True,linestyle='--', linewidth=4, alpha=0.5, dashes=(5, 10))
+# plt.title("Simulated Antenna Gain",fontsize=40)
+plt.legend(loc='lower center',fontsize=50,bbox_to_anchor=(0.4, 0.12))
+plt.xlabel('Frequency [GHz]',fontsize=45)
+plt.ylabel('Simulated Gain [dB]',fontsize=45)
+# plt.axis([134,148,0 ,20])
+plt.show()
 
 # Antenna Gain deg
 # csv_name = 'Sim_results/antennagaindeg.csv'
@@ -191,26 +202,26 @@ plt.style.use(['science','no-latex'])
 # plt.axis([7,8,-40 ,-20])
 # plt.show()
 
-Tchirp = 100E-6
-fsample = 100E6
-fbeat = 10000
-tstep = 1/fsample
-t = np.linspace(0, Tchirp*5, int(Tchirp*5/tstep))
-s = np.cos(fbeat*(t % Tchirp))
-sf = 10*np.log10(np.fft.fft(s))
-freq = np.linspace(0,len(t),len(t))
-# fig = plt.subplots(1,2)
-plt.figure()
-plt.subplot(2,1,1)
-plt.plot(t, s, label='beat tone')
-plt.xlabel('Time (s)')
-plt.title("Non-integer period signal")
+# Tchirp = 100E-6
+# fsample = 100E6
+# fbeat = 10000
+# tstep = 1/fsample
+# t = np.linspace(0, Tchirp*5, int(Tchirp*5/tstep))
+# s = np.cos(fbeat*(t % Tchirp))
+# sf = 10*np.log10(np.fft.fft(s))
+# freq = np.linspace(0,len(t),len(t))
+# # fig = plt.subplots(1,2)
+# plt.figure()
+# plt.subplot(2,1,1)
+# plt.plot(t, s, label='beat tone')
+# plt.xlabel('Time (s)')
+# plt.title("Non-integer period signal")
 
-plt.subplot(2,1,2)
-plt.plot(freq[0:20], sf[0:20], label='spectrum')
-plt.xlabel('Frequency Index')
+# plt.subplot(2,1,2)
+# plt.plot(freq[0:20], sf[0:20], label='spectrum')
+# plt.xlabel('Frequency Index')
 
-plt.title("FFT for non-integer period signal")
-plt.rcParams['axes.unicode_minus'] = False
-plt.tight_layout()
-plt.show()
+# plt.title("FFT for non-integer period signal")
+# plt.rcParams['axes.unicode_minus'] = False
+# plt.tight_layout()
+# plt.show()
