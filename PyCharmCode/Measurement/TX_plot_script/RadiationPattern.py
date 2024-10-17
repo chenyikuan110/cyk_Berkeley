@@ -8,6 +8,7 @@ import glob
 from scipy.interpolate import interp1d
 import csv
 import re
+import itertools
 
 plt.rcParams['axes.unicode_minus'] = False
 # Initialization
@@ -25,6 +26,12 @@ plt.style.use(['science','no-latex'])
 #     'ytick.labelsize': 12,  # Y tick label font size
 #     'legend.fontsize': 12,  # Legend font size
 # })
+
+line_styles = ['-','-','-']
+line_cycle = itertools.cycle(line_styles)
+
+color_styles = ['black','red','blue']
+color_cycle = itertools.cycle(color_styles)
 
 
 def split_string(s, delimiters):
@@ -109,7 +116,7 @@ angles = np.linspace(-180, 179.5, 720)
 # print(path_loss)
 
 # Load DUT data
-my_subdir = "Rad/Phi"
+my_subdir = "Rad/Theta"
 
 csv_files = glob.glob(os.path.join(my_dir, my_subdir, 'TX_Rad*.csv'))
 
@@ -122,6 +129,8 @@ curr_max = -100
 curr_max_imrr = -100
 curr_argmax = 0
 curr_argmax_imrr = 0
+gains = []
+lines = []
 for i,file in enumerate(list(csv_files)):
     print(os.path.basename(file))
 
@@ -164,10 +173,13 @@ for i,file in enumerate(list(csv_files)):
 
     label_name = f'Radiation at {freq_rec_pw} GHz'
     # ax1.plot(freq_rec_pw, gain, label=f'{label_name}',linewidth=2*2, alpha=1) # non IEEE
-    ax1.plot(angle_rec_pw/180*np.pi, gain, label=f'{label_name}', alpha=0.4)  # IEEE
-    ax1.plot(angle_rec_pw[0:len(angle_rec_pw)-window_size]/180*np.pi, smoothed_gain[0:len(angle_rec_pw)-window_size], linewidth=2,
-     label=f'Smoothed {label_name}')
+    this_color =next(color_cycle)
+    # ax1.plot(angle_rec_pw/180*np.pi, gain, label=f'{label_name}', alpha=0.4, color=this_color)  # IEEE
+    line, =ax1.plot(angle_rec_pw[0:len(angle_rec_pw)-window_size]/180*np.pi, smoothed_gain[0:len(angle_rec_pw)-window_size], linewidth=5, color=this_color,
+     label=f'{label_name}')
     # ax2.plot(freq_rec_pw,imrr,label=f'{label_name}',linewidth=2*2, alpha=1)
+    gains.append(smoothed_gain)
+    lines.append(line)
 
 ax=plt.gca()
 bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
@@ -175,19 +187,27 @@ bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
 # kw = dict(xycoords='data',textcoords="axes fraction",
 #           arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=12*2) # non IEEE
 kw = dict(xycoords='data',textcoords="axes fraction",
-           bbox=bbox_props, ha="right", va="top",fontsize=20) # IEEE
-ax1.annotate(f'Max EIRP = {curr_max:.2f} dBm', xy=(angle_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
+           bbox=bbox_props, ha="right", va="top",fontsize=30) # IEEE
+# ax1.annotate(f'Max EIRP = {curr_max:.2f} dBm', xy=(angle_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
 print(curr_argmax, curr_max)
 
-ax1.set_ylabel('Transmitter EIRP [dBm]',fontsize=20,labelpad=35)
-yaxis_range = [-10, curr_max+15]
+for i, curves in enumerate(lines):
+    lines[i].set_ydata(gains[i][0:len(angle_rec_pw)-window_size]-curr_max)
 
-yticks = np.arange(yaxis_range[0]+10, yaxis_range[1]-10, 5)  # Ticks with a step of 20
+ax1.set_theta_zero_location("N")
+
+ax1.set_ylabel('Normalized Radiation Power [dB]',fontsize=35,labelpad=35)
+yaxis_range = [-30, 0]
+
+yticks = np.arange(yaxis_range[0], yaxis_range[1], 10)  # Ticks with a step of 20
 ax1.set_yticks(yticks)
+ax1.set_ylim(yaxis_range[0], yaxis_range[1])
 ax1.set_yticklabels([str(tick) for tick in yticks], fontfamily='DejaVu Sans',fontsize='20')
+pos=ax1.get_rlabel_position()
+ax1.set_rlabel_position(0)
 
 ax1.grid(True,linestyle='--',alpha=0.5)
-ax1.legend(loc='lower center')
+leg = ax1.legend(loc='lower center',fontsize=30,bbox_to_anchor=(0.5, 0.2), bbox_transform=ax1.transAxes)
 # angle_labels = [f"{int(np.degrees(angle))}\N{DEGREE SIGN}" for angle in ax1.get_xticks()]
 # ax1.set_xticklabels(angle_labels)
 

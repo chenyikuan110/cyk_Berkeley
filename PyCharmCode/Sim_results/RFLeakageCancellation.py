@@ -2,26 +2,42 @@ import numpy as np
 import scienceplots
 import matplotlib.pyplot as plt
 # import skrf as rf
-from scipy.signal import triang, hamming, hanning, boxcar, windows
+# from scipy.signal import hanning, boxcar, windows
 from scipy.constants import c
 from pylab import *
 
 rcParams["axes.unicode_minus"] = False
-# plt.style.use(['science','no-latex'])
+plt.style.use(['science','no-latex'])
 # plt.style.use(['science','no-latex','ieee'])
 
 # multi-path on/off
-multipath = True
+multipath = False
 
 # plot options
-plot_steps = True
+plot_steps = False
 window_type = hamming
 
-IQ_mismatch_on = 1  # set to 0 to turn off IQ amplitude mismatch
+IQ_mismatch_on = 0  # set to 0 to turn off IQ amplitude mismatch
 noise_on = 1  # set to 0 to turn off thermal noise
 averaging = 1  # if average is turned on, the frequency detection will be smoothed
 
 num_averaging = 3  # using neighboring plus_minus num_average indexes
+
+def triang(M):
+    if M <= 0:
+        return np.array([])
+    if M == 1:
+        return np.ones(1)
+    n = np.arange(0, M)
+    return 1 - np.abs((n - (M - 1) / 2) / (M / 2))
+
+def hamming(M):
+    if M < 1:
+        return np.array([])
+    if M == 1:
+        return np.ones(1)
+    n = np.arange(0, M)
+    return 0.54 - 0.46 * np.cos(2.0 * np.pi * n / (M - 1))
 
 '''
     Parameter initialization
@@ -40,6 +56,7 @@ fsampling = fRBW * 1000
 N = int(np.floor(fsampling / fRBW))
 
 PTX_dBm = 10
+# gain_rx = 40
 Isolation = 30  # dB
 Isolation_1 = 45  # dB
 
@@ -74,7 +91,7 @@ curr_tau = tau_tunable_array[0]
 
 DC_offset = np.random.randn() * 0.001
 
-Phi_0 = 2 * np.pi * np.random.rand()  # LO start at a random phase at t=0
+Phi_0 =  2 * np.pi * np.random.rand()  # LO start at a random phase at t=0
 Phi_1 = 0 * 2 * np.pi * np.random.rand() / 360 / 2  # keep the phase mismatch in the LO splitter less than 0.5 deg
 
 sharpness_change = 0
@@ -244,7 +261,7 @@ Phi_hat_0 = np.angle(yfft[1])
 # Phi_hat_0 = 2*pi*fRF/K*fRBW
 
 # generate a signal with leakage plus target
-dist_tar = 0.2  # meter, hand is this far away
+dist_tar = 0.24  # meter, hand is this far away
 tau_tar = dist_tar * 2 / 3e8
 
 # Ptx = 17  # transmitted power in dBm
@@ -529,14 +546,23 @@ BB_leakage_out_windowed = BB_leakage_out * window
 BB_target_out_windowed = BB_target_out * window
 
 BB_fft = np.fft.fft(BB_out_windowed) / len(BB_out_windowed)
-BB_fft_db = mag2db(np.abs(BB_fft))
+BB_fft_db = mag2db(np.abs(BB_fft)) 
 
+
+BB_fft_db = BB_fft_db 
 BB_before_controlled_fft_db = mag2db(
     np.abs(np.fft.fft(BB_before_controlled_windowed) / len(BB_before_controlled_windowed)))
 BB_raw_fft_db = mag2db(np.abs(np.fft.fft(BB_raw_out_windowed) / len(BB_raw_out_windowed)))
 BB_leakage_out_db = mag2db(np.abs(np.fft.fft(BB_leakage_out_windowed) / len(BB_leakage_out_windowed)))
 BB_target_out_db = mag2db(np.abs(np.fft.fft(BB_target_out_windowed) / len(BB_target_out_windowed)))
 
+gain_rx = -np.max(BB_raw_fft_db)
+
+BB_fft_db = BB_fft_db + gain_rx
+BB_before_controlled_fft_db = BB_before_controlled_fft_db+ gain_rx
+BB_raw_fft_db = BB_raw_fft_db+ gain_rx
+BB_leakage_out_db = BB_leakage_out_db+ gain_rx
+BB_target_out_db = BB_target_out_db+ gain_rx
 # Plotting the results
 plt.figure(plot_count + 2)
 
@@ -547,30 +573,43 @@ if not multipath:
 else:
     correction_dist = (curr_max_tau+curr_max_tau_0) * 3e11 / 2
 
-plt.stem((np.arange(len(BB_raw_fft_db) // 2)) * fRBW * 3e11 / K / 2, BB_raw_fft_db[:len(BB_raw_fft_db) // 2],
-         markerfmt='s', basefmt=' ', use_line_collection=True, label='before cancellation', linefmt='C0-',
-         bottom=stem_bottom)
+# markerline1, stemline1, baseline1,  = plt.stem((np.arange(len(BB_raw_fft_db) // 2)) * fRBW * 3e11 / K / 2, BB_raw_fft_db[:len(BB_raw_fft_db) // 2],
+#          markerfmt='s', basefmt=' ',   label='before cancellation', linefmt='C0-', 
+#          bottom=stem_bottom)
 
-plt.stem((np.arange(len(BB_fft_db) // 2)) * fRBW * 3e11 / K / 2 - correction_dist, BB_fft_db[:len(BB_fft_db) // 2],
-         markerfmt='*', basefmt=' ', use_line_collection=True, label='after cancellation', linefmt='C1-',
-         bottom=stem_bottom)
+# markerline2, stemline2, baseline2,  = plt.stem((np.arange(len(BB_fft_db) // 2)) * fRBW * 3e11 / K / 2 - correction_dist, BB_fft_db[:len(BB_fft_db) // 2],
+#          markerfmt='*', basefmt=' ',   label='after cancellation', linefmt='C1-',
+#          bottom=stem_bottom)
+plt.plot((np.arange(len(BB_raw_fft_db) // 2)) * fRBW * 3e11 / K / 2, BB_raw_fft_db[:len(BB_raw_fft_db) // 2], 
+         label='before cancellation', linewidth = 4,linestyle ='-',color='black', marker='D', markersize=10)
+
+plt.plot((np.arange(len(BB_fft_db) // 2)) * fRBW * 3e11 / K / 2 - correction_dist, BB_fft_db[:len(BB_fft_db) // 2], 
+         label='after cancellation' , linewidth = 4,linestyle ='-',color='red', marker='*', markersize=10)
 
 plt.plot((np.arange(len(BB_leakage_out_db) // 2)) * fRBW * 3e11 / K / 2,
-         BB_leakage_out_db[:len(BB_leakage_out_db) // 2],
+         BB_leakage_out_db[:len(BB_leakage_out_db) // 2], linewidth = 4,linestyle ='--',color='blue',
          label='leakage-only')
 
-plt.plot((np.arange(len(BB_target_out_db) // 2)) * fRBW * 3e11 / K / 2, BB_target_out_db[:len(BB_target_out_db) // 2],
-         label='target-only')
+plt.plot((np.arange(len(BB_target_out_db) // 2)) * fRBW * 3e11 / K / 2, BB_target_out_db[:len(BB_target_out_db) // 2], linewidth = 2, linestyle ='--',
+         label='target-only',color='black')
 
-plt.legend(loc='upper right')
-plt.axis([0, min((len(BB_fft_db) // 2 - 1) * fRBW * 3e11 / K / 2 - correction_dist, 1000), stem_bottom, 0])
-plt.title(f"Target at {dist_tar * 100} cm, Delay tuning step is {delay_step * 1e12} ps")
-plt.xlabel('Distance (mm)')
-plt.ylabel('dB')
-
+# plt.setp(markerline1, markersize=10, color='gray')
+# plt.setp(markerline2, markersize=10, color='red')
+# plt.setp(stemline1,  color='black')
+# plt.setp(stemline2, color='red')
+plt.tick_params(labelsize = 28*2)
+plt.axis([0, min((len(BB_fft_db) // 2 - 1) * fRBW * 3e11 / K / 2 - correction_dist, 1000), -125, np.max(BB_raw_fft_db)])
+# plt.title(f"Target at {dist_tar * 100} cm, Delay tuning step is {delay_step * 1e12} ps")
+# plt.title(f"Simulated 1000-point Range FFT with Target at {dist_tar * 100} cm",fontsize=40)
+plt.xlabel('Distance [mm]',fontsize=45)
+plt.grid(True,linestyle='--', linewidth=4, alpha=0.5, dashes=(5, 10))
+plt.ylabel('Simulated Normalized RX Power [dB]',fontsize=35)
+plt.legend(loc='upper right',fontsize=50,bbox_to_anchor=(1, 1))
 for i in range(min(100, len(BB_raw_fft_db))):
     print(f"{i * fRBW * 3e11 / K / 2},{BB_raw_fft_db[i]},{BB_fft_db[i]},{BB_leakage_out_db[i]},{BB_target_out_db[i]}")
 
+plt.show()
+exit()
 # Real Time Plot
 # plt.figure(plot_count + 3)
 fig, (ax1, ax2) = plt.subplots(2, 1)

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import skrf as rf
 import csv
 
+
 # LNA
 freq = np.linspace(135, 147, 13)
 A=[5.12,5.32,5.5,5.72,5.8,6.10,6.20,6.5,6.75,6.8,7.15,7.01,7.24]
@@ -68,46 +69,56 @@ plt.style.use(['science','no-latex'])
 
 # Antenna S11
 # antenna = rf.Network('test.s34p', f_unit='GHz')
-# antenna.plot_s_db(m=31,n=31,label='Full transition structure ')
-# antenna.plot_s_db(m=32,n=32,label='Antenna matching only')
-# plt.ylabel('S-parameters')
-# plt.title('RF transition and antenna matching simulation')
+
+# plt.plot(freq1, peakgain_list, label='Peak Gain',linewidth=5,color='black',marker='^',markersize=10)
+# plt.plot(freq2, peakrealizedgain_list, label='Peak Realized Gain',linewidth=5,color='red',marker='s',markersize=10)
+
+# antenna.plot_s_db(m=31,n=31,label='Full transition structure ',linewidth=5,color='black')
+# antenna.plot_s_db(m=32,n=32,label='Antenna matching only',linewidth=5,color='red')
+# plt.ylabel('Simulated S-parameters [dB]',fontsize=45)
+# plt.tick_params(labelsize = 28*2)
+# plt.xlabel('Frequency [GHz]',fontsize=45)
+# plt.grid(True,linestyle='--', dashes=(5, 10))
+# plt.legend(loc='lower center',fontsize=50,bbox_to_anchor=(0.4, 0.15))
+# # plt.title('RF transition and antenna matching simulation')
 # plt.show()
 
 # Antenna Gain
-# csv_name = 'Sim_results/peakgain.csv'
-# peakgain = open(csv_name)
-# obj_peakgain = csv.reader(peakgain)
-# freq1 = []
-# peakgain_list = []
-# for i,row in enumerate(list(obj_peakgain)):
-#     if i == 0:
-#         continue
-#     # print(row)
-#     freq1.append(float(row[0]))
-#     peakgain_list.append(float(row[1]))
-#
-# csv_name = 'Sim_results/peakrealizedgain.csv'
-# peakrealizedgain = open(csv_name)
-# obj_peakrealizedgain = csv.reader(peakrealizedgain)
-# freq2 = []
-# peakrealizedgain_list = []
-# for i,row in enumerate(list(obj_peakrealizedgain)):
-#     if i == 0:
-#         continue
-#     # print(row)
-#     freq2.append(float(row[0]))
-#     peakrealizedgain_list.append(float(row[1]))
-#
-# plt.figure()
-# plt.plot(freq1, peakgain_list, label='Peak Gain')
-# plt.plot(freq2, peakrealizedgain_list, label='Peak Realized Gain')
-# plt.title("Antenna Gain")
-# plt.legend(loc='lower center')
-# plt.xlabel('Frequency(GHz)')
-# plt.ylabel('Voltage Gain (dB)')
-# # plt.axis([134,148,0 ,20])
-# plt.show()
+csv_name = 'Sim_results/peakgain.csv'
+peakgain = open(csv_name)
+obj_peakgain = csv.reader(peakgain)
+freq1 = []
+peakgain_list = []
+for i,row in enumerate(list(obj_peakgain)):
+    if i == 0:
+        continue
+    # print(row)
+    freq1.append(float(row[0]))
+    peakgain_list.append(float(row[1]))
+
+csv_name = 'Sim_results/peakrealizedgain.csv'
+peakrealizedgain = open(csv_name)
+obj_peakrealizedgain = csv.reader(peakrealizedgain)
+freq2 = []
+peakrealizedgain_list = []
+for i,row in enumerate(list(obj_peakrealizedgain)):
+    if i == 0:
+        continue
+    # print(row)
+    freq2.append(float(row[0]))
+    peakrealizedgain_list.append(float(row[1]))
+
+plt.figure()
+plt.tick_params(labelsize = 28*2)
+plt.plot(freq1, peakgain_list, label='Peak Gain',linewidth=5,color='black',marker='^',markersize=10)
+plt.plot(freq2, peakrealizedgain_list, label='Peak Realized Gain',linewidth=5,color='red',marker='s',markersize=10)
+plt.grid(True,linestyle='--', linewidth=4, alpha=0.5, dashes=(5, 10))
+# plt.title("Simulated Antenna Gain",fontsize=40)
+plt.legend(loc='lower center',fontsize=50,bbox_to_anchor=(0.4, 0.12))
+plt.xlabel('Frequency [GHz]',fontsize=45)
+plt.ylabel('Simulated Gain [dB]',fontsize=45)
+# plt.axis([134,148,0 ,20])
+plt.show()
 
 # Antenna Gain deg
 # csv_name = 'Sim_results/antennagaindeg.csv'
@@ -191,40 +202,61 @@ plt.style.use(['science','no-latex'])
 # plt.axis([7,8,-40 ,-20])
 # plt.show()
 
-# Tchirp = 100E-6
-# fsample = 100E6
-# fbeat = 10000
-# tstep = 1/fsample
-# t = np.linspace(0, Tchirp*5, int(Tchirp*5/tstep))
-# s = np.cos(fbeat*(t % Tchirp))
-# sf = 10*np.log10(np.fft.fft(s))
-# freq = np.linspace(0,len(t),len(t))
-# # fig = plt.subplots(1,2)
-# plt.figure()
-# plt.subplot(2,1,1)
-# plt.plot(t, s, label='beat tone')
-# plt.xlabel('Time (s)')
-# plt.title("Non-integer period signal")
+Tchirp = 100E-6
+fsample = 100E6
+fbeat = 1/Tchirp
+tstep = 1/fsample
+t = np.linspace(0, Tchirp*1-tstep, int(Tchirp*1/tstep))
 
-# plt.subplot(2,1,2)
-# plt.plot(freq[0:20], sf[0:20], label='spectrum')
-# plt.xlabel('Frequency Index')
+window = 1#np.hanning(len(t))
+tone1 = np.sin(2*np.pi*fbeat*(t % Tchirp))
+tone2 = 0.2*1*np.sin(2*np.pi*1.5*fbeat*(t % Tchirp))
 
-# plt.title("FFT for non-integer period signal")
-# plt.rcParams['axes.unicode_minus'] = False
-# plt.tight_layout()
+for i in range(10,15):
+    s1 = (tone1+tone2)-tone1*i/10 #*np.exp(2*np.pi*fbeat/10*i*(t % Tchirp))
+    s2 = tone2
+    sf1 = 10*np.log10(np.abs(np.fft.fft(s1*window)))
+    sf2 = 10*np.log10(np.abs(np.fft.fft(s2*window)))
+    freq = np.linspace(0,len(t),len(t))
+    # fig = plt.subplots(1,2)
+    plt.figure(figsize=(8,8))
+    plt.subplot(3,1,1)
+    plt.plot(t, s1, label='beat tone')
+    plt.xlabel('Time (s)')
+    plt.title("Non-integer period signal"+f'freq shift by {i}/10*fbeat')
+
+    plt.subplot(3,1,2)
+    plot_len = len(freq)
+    # print(plot_len)
+    plt.plot(freq[0:plot_len], sf1[0:plot_len], label='both component')
+    plt.plot(freq[0:plot_len], sf2[0:plot_len], label='second component')
+    plt.xlabel('Frequency Index')
+    plt.legend()
+    plt.title("FFT for non-integer period signal")
+    plt.rcParams['axes.unicode_minus'] = False
+
+
+    plt.subplot(3,1,3)
+    plot_len = 20
+    # print(plot_len)
+    plt.stem(freq[0:plot_len], sf1[0:plot_len], label='both component',bottom=np.min(sf1[0:plot_len]),markerfmt='d')
+    plt.stem(freq[0:plot_len], sf2[0:plot_len], label='second component',bottom=np.min(sf1[0:plot_len]),markerfmt='ro')
+    plt.xlabel('Frequency Index')
+    plt.legend()
+    # plt.tight_layout()
+
+    plt.show()
+
+# # Package Sparams
+# package_M1_LL = rf.Network('./Measurement/Spectrum_Plot/Yikuan_V2/m1_ll.s2p', f_unit='GHz')
+# # package_M1_LL.plot_s_db(m=0,n=0,label='S11 ',linewidth=2)
+# package_M1_LL.plot_s_db(m=1,n=0,label='M1 S21',linewidth=2)
+# package_M3_LL = rf.Network('./Measurement/Spectrum_Plot/Yikuan_V2/m3_ll.s2p', f_unit='GHz')
+# # package_M1_LL.plot_s_db(m=0,n=0,label='S11 ',linewidth=2)
+# package_M3_LL.plot_s_db(m=1,n=0,label='M3 S21',linewidth=2)
+# plt.ylabel('S-parameters',fontsize=40)
+# plt.xlabel('Freq (GHz)',fontsize=40)
+# plt.legend(loc='lower left',fontsize=40)
+# plt.title('M1 M3 4mm T-line',fontsize=40)
+# plt.tick_params(axis='both', which='major', labelsize=40)  
 # plt.show()
-
-# Package Sparams
-package_M1_LL = rf.Network('./Measurement/Spectrum_Plot/Yikuan_V2/m1_ll.s2p', f_unit='GHz')
-# package_M1_LL.plot_s_db(m=0,n=0,label='S11 ',linewidth=2)
-package_M1_LL.plot_s_db(m=1,n=0,label='M1 S21',linewidth=2)
-package_M3_LL = rf.Network('./Measurement/Spectrum_Plot/Yikuan_V2/m3_ll.s2p', f_unit='GHz')
-# package_M1_LL.plot_s_db(m=0,n=0,label='S11 ',linewidth=2)
-package_M3_LL.plot_s_db(m=1,n=0,label='M3 S21',linewidth=2)
-plt.ylabel('S-parameters',fontsize=40)
-plt.xlabel('Freq (GHz)',fontsize=40)
-plt.legend(loc='lower left',fontsize=40)
-plt.title('M1 M3 4mm T-line',fontsize=40)
-plt.tick_params(axis='both', which='major', labelsize=40)  
-plt.show()
