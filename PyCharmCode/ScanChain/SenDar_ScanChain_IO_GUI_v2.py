@@ -23,8 +23,8 @@ w_size = 1500
 # Environment var
 # VM_freq 16368 good
 print_info = True
-Emulating = True
-port = 'COM5' if os.name == 'nt' else '/dev/ttys002' # COM9 for arduino uno, COM5 for arduino due, COM2<->4 are virtual
+Emulating = False
+port = 'COM11' if os.name == 'nt' else '/dev/ttys002' # COM9 for arduino uno, COM5 for arduino due, COM2<->4 are virtual
 baudrate = 115200
 scanchain_size = 648
 scan_data_size = 597

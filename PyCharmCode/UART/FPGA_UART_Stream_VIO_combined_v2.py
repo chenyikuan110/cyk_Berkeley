@@ -39,7 +39,7 @@ emulation_on = False
 if os.name == 'nt':
     ser = serial.Serial()
     ser.baudrate = 230400  # 115200
-    ser.port = 'COM7' if emulation_on else 'COM9'  # CHANGE THIS COM PORT 7 is emulation, 9 is FPGA here
+    ser.port = 'COM7' if emulation_on else 'COM10 '  # CHANGE THIS COM PORT 7 is emulation, 9 is FPGA here
     ser.timeout = 2
     ser.open()
 else:
