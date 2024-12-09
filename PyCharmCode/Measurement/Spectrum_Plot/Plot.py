@@ -15,27 +15,30 @@ my_dir = ""
 
 # Load DUT data
 # my_subdir = "20240830_FMCW/compare"
-my_subdir = "20240823_VM_TX/"
+# my_subdir = "20240823_VM_TX/"
+my_subdir = "20241204_FMCW/556MHz"
 csv_format = 'TraceC*.csv'
 # csv_format = '*'
 sort_regex = r'_(\d+(?:\.\d+)?)'
 
-# my_xlabel = f'Target distance [m]'
+my_xlabel = f'Target distance [m]'
 # my_xlabel = f'IF Frequency Offset [MHz]'
-my_xlabel = f'Frequency [GHz]'
+# my_xlabel = f'Frequency [GHz]'
 # plot_name = 'Received Power\n Normalized to Leakage [dB]'
-# plot_name = 'Measured Power [dBm]'
+plot_name = 'Measured Power [dBm]'
 # plot_name = 'Normalized IF Floor [dB]'
-plot_name = 'Measured Cancellation [dB]'
+# plot_name = 'Measured Cancellation [dB]'
 font_downscale = 2
 legend_loc = 'lower center'
 linewidth=2
 window_size = 1
 normalize = False
 align = False
-marker_on = True
+marker_on = False
 difference = False
 ten = True
+
+fold_result = True
 
 plt.rcParams['axes.unicode_minus'] = False
 # Initialization
@@ -121,17 +124,38 @@ for i,file in enumerate(list(csv_files)):
     rec_pw = tmp[1,:]
     print(freq_rec_pw)
     # freq_rec_pw = (freq_rec_pw+125e9)/1e9
-    freq_rec_pw = (freq_rec_pw)/1e9
+    # freq_rec_pw = (freq_rec_pw)/1e9
     # freq_rec_pw = (freq_rec_pw)/1e6-10
-    # freq_rec_pw = (freq_rec_pw - 10e6) / 10e3*0.015
+    freq_rec_pw = (freq_rec_pw - 10e6) / 10e3*0.015
 
     gain = rec_pw # 3 dB due to the output balun
     gain = np.array(gain)
 
-    # Calculate smoothed gain with moving average
-    
-    smoothed_gain = np.convolve(gain, np.ones(window_size)/window_size, mode='same')
 
+
+    if fold_result:
+        len1 = len(freq_rec_pw)
+        freq_rec_pw = freq_rec_pw[freq_rec_pw>= 0]
+        offset_size = len1-len(freq_rec_pw)
+        gain_out = np.zeros_like(freq_rec_pw)
+        for index, freq_val in enumerate(freq_rec_pw):
+            if index == 0:
+                gain_out[index] = gain[offset_size]
+            else:
+                if offset_size - index > 0 and offset_size + index < len1:
+                    temp = 10**(gain[offset_size - index]/10) + 10**(gain[offset_size + index]/10)
+                else:
+                    if offset_size - index > 0:
+                        temp = 10 ** (gain[offset_size - index] / 10)
+                    elif offset_size + index < len1:
+                        temp = 10 ** (gain[offset_size + index] / 10)
+                    else:
+                        print("Error with input array size!")
+                        exit()
+                gain_out[index] = 10*np.log10(temp)
+        gain = gain_out
+    # Calculate smoothed gain with moving average
+    smoothed_gain = np.convolve(gain, np.ones(window_size)/window_size, mode='same')
     line_max = smoothed_gain[window_size:len(freq_rec_pw)-window_size].max()
     if line_max > curr_max:
         curr_max = line_max
@@ -172,21 +196,22 @@ bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
 arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=40")
 kw = dict(xycoords='data',textcoords="axes fraction",
           arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top",fontsize=15*2) # non IEEE
-ax1.annotate(f'Max Cancellation = {curr_max:.2f} dB', xy=(freq_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
+# ax1.annotate(f'Max Cancellation = {curr_max:.2f} dB', xy=(freq_rec_pw[curr_argmax], curr_max), xytext=(0.94,0.96), **kw)
 # print(curr_argmax, curr_max)
 
-ax1.axhline(y=np.mean(gain)+offset, color='r', linestyle='--',linewidth=2)
+# ax1.axhline(y=np.mean(gain)+offset, color='r', linestyle='--',linewidth=2)
 ax1.tick_params(labelsize = 28*2)
 ax1.set_xlabel(my_xlabel,fontsize=25*2)
 ax1.set_ylabel(plot_name,fontsize=25*2)
 ax1.grid(True,linestyle='--', linewidth=2, alpha=0.5, dashes=(2, 4))
-ax1.legend(loc=legend_loc, fontsize=12.5*2*4/(i+1)/font_downscale, facecolor='white', edgecolor='black')#,bbox_to_anchor=(0.68, 0.9))
+ax1.legend(loc=legend_loc, fontsize=12.5*2*4/(i+1)/font_downscale, facecolor='white', edgecolor='black',bbox_to_anchor=(0.5, 0.78))
 
 print("curr max is ",curr_max)
 xaxis_range = [int(freq_rec_pw[0]), int(freq_rec_pw[-1])]
 spacing = np.floor(xaxis_range[1]-xaxis_range[0])/5
-# xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, spacing)  # Ticks with a step of 20
-xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, spacing)
+print(spacing)
+xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, spacing)  # Ticks with a step of 20
+# xticks = np.arange(xaxis_range[0], xaxis_range[1]+2, spacing)
 print("xticks is ",xticks, "spacing is ",spacing)
 ax1.set_xticks(xticks)
 print(gain[~np.isnan(gain)])
